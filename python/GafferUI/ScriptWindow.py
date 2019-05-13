@@ -158,6 +158,7 @@ class ScriptWindow( GafferUI.Window ) :
 
 		w = ScriptWindow( script )
 		w.setVisible( True )
+		w.getLayout().restorePreferredBound()
 		ScriptWindow.__automaticallyCreatedInstances.append( w )
 
 	@staticmethod
