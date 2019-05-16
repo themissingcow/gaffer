@@ -195,6 +195,21 @@ class Widget( object ) :
 
 		self.setToolTip( toolTip )
 
+	def __del__( self ) :
+
+		def disconnect( o ) :
+
+			if isinstance( o, dict ) :
+				for v in o.values() :
+					disconnect( v )
+			elif isinstance( o, list ) :
+				for v in o :
+					disconnect( v )
+			elif isinstance( o, Gaffer.ScopedConnection ) :
+				o.disconnect()
+
+		disconnect( self.__dict__ )
+
 	## Sets whether or not this Widget is visible. Widgets are
 	# visible by default, except for Windows which need to be made
 	# visible explicitly after creation.
