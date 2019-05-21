@@ -91,9 +91,9 @@ class GraphEditor( GafferUI.Editor ) :
 
 		self.__frame( nodes, extend )
 
-	def getTitle( self ) :
+	def getTitle( self, brief = False ) :
 
-		title = super( GraphEditor, self ).getTitle()
+		title = super( GraphEditor, self ).getTitle( brief )
 		if title:
 			return title
 
