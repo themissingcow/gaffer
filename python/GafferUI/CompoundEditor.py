@@ -50,7 +50,7 @@ from Qt import QtCore
 from Qt import QtGui
 from Qt import QtWidgets
 
-# ComoundEditor preferredBound is a bottom-left origin NDC (available area)
+# Note: 'preferredBound' is a bottom-left origin NDC (available area)
 # representation of a windows on-screen geometry. This is persisted in saved
 # layouts to maximise compatibility between different screen configurations.
 # @see _preferredBound
@@ -699,7 +699,7 @@ class _TabbedContainer( GafferUI.TabbedContainer ) :
 
 
 ## An internal eventFilter class managing all tab drag-drop events and logic.
-# Tab dragging is and exception and is implemented entirely using native Qt
+# Tab dragging is an exception and is implemented entirely using native Qt
 # events. This was decided after trying all combinations of Qt-only/Gaffer-only
 # and Gaffer/Qt hybrid as:
 #
@@ -729,8 +729,8 @@ class _TabDragBehaviour( QtCore.QObject ) :
 	__tabMimeType = "application/x-gaffer.compoundEditor.tab"
 
 	# Qt has a somewhat hard-coded handling of the drag/drop cursor which draws
-	# the 'forbidden' shape when outside of our windows.  QDragManager also
-	# uses setOverrideCursor to so setCursor doesn't have any effect. This is a
+	# the 'forbidden' shape when outside of our windows. QDragManager also
+	# uses setOverrideCursor so setCursor doesn't have any effect. This is a
 	# nasty brute-force global event filter that attempts to wrangle back some
 	# control over the mouse cursor during a drag.
 	class _CursorBehaviour( QtCore.QObject ) :
@@ -739,7 +739,7 @@ class _TabDragBehaviour( QtCore.QObject ) :
 			# We always get a MetaCall as well as Move. This helps us trump
 			# DragManager which seems to update in Move - lol.
 			if e.type() in ( QtCore.QEvent.MetaCall, QtCore.QEvent.Move ) :
-				# We use the DragMoveCursor to minimises visual flicker
+				# We use the DragMoveCursor to minimise visual flicker
 				# (as its the 'allowed' version of the 'forbidden' cursor
 				# it's overriding).
 				QtWidgets.QApplication.instance().changeOverrideCursor(  QtCore.Qt.DragMoveCursor )
@@ -825,11 +825,11 @@ class _TabDragBehaviour( QtCore.QObject ) :
 
 			self.__abortedInitialRearrange = False
 
-			# As the tab the user clicks on to drag may be re-ordered before
-			# they leave the bounds of the widget, we track which tab was
-			# originally picked, and where it started, then we can put it back
-			# if we need to later. We also track which tab was current as the
-			# user can initiate a drag a background tab
+			# As the tab the user clicks on to drag may have been re-ordered
+			# before they leave the bounds of the widget, we track which tab
+			# was originally picked, and where it started. Then we can put it
+			# back if we need to later. We also track which tab was current as
+			# the user can initiate a drag from an unselected tab.
 
 			self.__draggedTab = None
 			self.__currentTabAtDragStart = None
@@ -868,8 +868,8 @@ class _TabDragBehaviour( QtCore.QObject ) :
 		# any in-progress move of the tab (constrained to this TabBar) So we
 		# can venture off into our own brave new world.
 		#
-		# All further mouse moves should be handled by in response to DragMove
-		# if in-drag logic is required.
+		# All further mouse moves need be handled (by this class) in
+		# response to DragMove if any in-drag logic is required.
 
 		if event.buttons() & QtCore.Qt.LeftButton \
 		   and not self.__abortedInitialRearrange \
@@ -1068,7 +1068,7 @@ class _TabDragBehaviour( QtCore.QObject ) :
 	# /nasty-fudge
 
 
-## Returns the preferred  bound for a widget's window in NDC space
+## Returns the preferred bound for a widget's window in NDC space
 # (relative to the available screen area). We use the relative area to
 # help with portability between platforms/window managers.
 # '-1' is used to indicate windows that are on the primary screen.
@@ -1095,7 +1095,7 @@ def _preferredBound( gafferWindow ) :
 	screenH = float( screenGeom.height() )
 
 	# Ideally we'd use frameGeometry for portability, but have seen a variety
-	# of issues where the window has been made visible, but doesn't not yet
+	# of issues where the window has been made visible, but doesn't yet
 	# have a frame, as we rely on asking for the margins (as you can't
 	# setFrameGeometry) we end up with unreliable window placement. As such
 	# we compromise and store the widgets geometry instead.
