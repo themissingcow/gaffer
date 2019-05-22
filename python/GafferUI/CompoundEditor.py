@@ -459,14 +459,6 @@ class _TabbedContainer( GafferUI.TabbedContainer ) :
 		editor.__titleChangedConnection = None
 		self.removeChild( editor )
 
-	def hasEditor( self, editor ) :
-
-		try :
-			self.index( editor )
-			return True
-		except ValueError :
-			return False
-
 	def setTabsVisible( self, tabsVisible ) :
 
 		GafferUI.TabbedContainer.setTabsVisible( self, tabsVisible )
@@ -924,8 +916,8 @@ class _TabDragBehaviour( QtCore.QObject ) :
 			# If the dragged tab wasn't current, restore the original
 			# widget, unless the dragged tab was re-placed in this container.
 			# We do this as the drag-rearrange/remove can change the current tab
-			if not tabbedContainer.hasEditor( self.__getSharedDragWidget() ) \
-			   and tabbedContainer.hasEditor( self.__currentTabAtDragStart ) :
+			if not tabbedContainer.hasChild( self.__getSharedDragWidget() ) \
+			   and tabbedContainer.hasChild( self.__currentTabAtDragStart ) :
 				tabbedContainer.setCurrent( self.__currentTabAtDragStart )
 		else :
 
@@ -975,7 +967,7 @@ class _TabDragBehaviour( QtCore.QObject ) :
 		event.acceptProposedAction()
 
 		widget = self.__getSharedDragWidget()
-		if not self.__tabbedContainer().hasEditor( widget ) :
+		if not self.__tabbedContainer().hasChild( widget ) :
 			self.__tabbedContainer().addEditor( widget )
 
 		self.__setHover( None )
@@ -1092,12 +1084,11 @@ def _preferredBound( gafferWindow ) :
 	if not window :
 		return {}
 
-	widgetScreen = QtWidgets.QApplication.primaryScreen()
-	widgetScreenNumber = -1
+	widgetScreen = window.screen()
+	widgetScreenNumber = QtWidgets.QApplication.desktop().screenNumber( qWidget )
 
-	if window.screen() != QtWidgets.QApplication.primaryScreen():
-		widgetScreen = window.screen()
-		widgetScreenNumber = QtWidgets.QApplication.desktop().screenNumber( qWidget )
+	if widgetScreen == QtWidgets.QApplication.primaryScreen():
+		widgetScreenNumber = -1
 
 	screenGeom = widgetScreen.availableGeometry()
 	screenW = float( screenGeom.width() )
