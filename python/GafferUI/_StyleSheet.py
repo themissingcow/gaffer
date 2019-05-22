@@ -468,11 +468,9 @@ _styleSheet = string.Template(
 
 	}
 
-	/* indent the first tab. can't do this using QTabWidget::tab-bar:left */
-	/* as that messes up the alignment of the corner widget (makes it overlap) */
-	QTabBar::tab:first, QTabBar::tab:only-one {
+	QTabWidget::tab-bar:top {
 
-		margin-left: 10px;
+		left: 10px;
 
 	}
 
@@ -496,6 +494,13 @@ _styleSheet = string.Template(
 	QTabBar::tab:disabled {
 
 		color: $foregroundFaded;
+
+	}
+
+	/* Ensures the QSplitter border is visible if we need to highlight */
+	QSplitter#gafferCompoundEditor[gafferNumChildren="1"] {
+
+		padding: 1px;
 
 	}
 
@@ -1112,6 +1117,20 @@ _styleSheet = string.Template(
 
 		border-top-right-radius: 0px;
 		border-bottom-right-radius: 0px;
+
+	}
+
+	*[gafferHover="true"] {
+
+		border: 1px solid $brightColor;
+
+	}
+
+	/* Utility */
+
+	#gafferOpaqueBackgroundMid {
+
+		background: $backgroundMid;
 
 	}
 
