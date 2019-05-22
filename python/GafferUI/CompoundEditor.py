@@ -449,7 +449,7 @@ class _TabbedContainer( GafferUI.TabbedContainer ) :
 		self.insert( len( self ), editor )
 		self.setCurrent( editor )
 
-		self.setLabel( editor, editor.getTitle() )
+		self.__titleChanged( editor )
 		editor.__titleChangedConnection = editor.titleChangedSignal().connect( Gaffer.WeakMethod( self.__titleChanged ) )
 
 		return editor
@@ -533,7 +533,8 @@ class _TabbedContainer( GafferUI.TabbedContainer ) :
 
 	def __titleChanged( self, editor ) :
 
-		self.setLabel( editor, editor.getTitle() )
+		isPinned = self.__isPinned( editor )
+		self.setLabel( editor, editor.getTitle( brief = not isPinned ) )
 
 	def __currentTabChanged( self, tabbedContainer, currentEditor ) :
 
@@ -551,7 +552,7 @@ class _TabbedContainer( GafferUI.TabbedContainer ) :
 
 			self.__pinningButton.setVisible( True )
 
-			if editor.getNodeSet().isSame( editor.scriptNode().selection() ) :
+			if not self.__isPinned( editor ):
 				self.__pinningButton.setToolTip( "Click to lock view to current selection" )
 				self.__pinningButton.setImage( "targetNodesUnlocked.png" )
 			else :
@@ -561,6 +562,13 @@ class _TabbedContainer( GafferUI.TabbedContainer ) :
 		else :
 
 			self.__pinningButton.setVisible( False )
+
+	def __isPinned( self, editor ) :
+
+		if not isinstance( editor, GafferUI.NodeSetEditor ) or editor.scriptNode() is None :
+			return False
+
+		return not editor.getNodeSet().isSame( editor.scriptNode().selection() )
 
 	def __pinningButtonClicked( self, button ) :
 
@@ -574,6 +582,7 @@ class _TabbedContainer( GafferUI.TabbedContainer ) :
 		else :
 			nodeSet = selectionSet
 		editor.setNodeSet( nodeSet )
+		self.__titleChanged( editor )
 
 	def __pinningButtonContextMenu( self, button ) :
 

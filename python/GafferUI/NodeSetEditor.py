@@ -80,27 +80,33 @@ class NodeSetEditor( GafferUI.Editor ) :
 	## Overridden to display the names of the nodes being edited.
 	# Derived classes should override _titleFormat() rather than
 	# reimplement this again.
-	def getTitle( self ) :
+	def getTitle( self, brief = False ) :
 
-		t = GafferUI.Editor.getTitle( self )
+		t = GafferUI.Editor.getTitle( self, brief )
 		if t :
 			return t
 
-		if self.__titleFormat is None :
-			self.__titleFormat = self._titleFormat()
-			self.__nameChangedConnections = []
-			for n in self.__titleFormat :
-				if isinstance( n, Gaffer.GraphComponent ) :
-					self.__nameChangedConnections.append( n.nameChangedSignal().connect( Gaffer.WeakMethod( self.__nameChanged ) ) )
+		if brief :
 
-		result = ""
-		for t in self.__titleFormat :
-			if isinstance( t, basestring ) :
-				result += t
-			else :
-				result += t.getName()
+			return IECore.CamelCase.toSpaced( self.__class__.__name__ )
 
-		return result
+		else :
+
+			if self.__titleFormat is None :
+				self.__titleFormat = self._titleFormat()
+				self.__nameChangedConnections = []
+				for n in self.__titleFormat :
+					if isinstance( n, Gaffer.GraphComponent ) :
+						self.__nameChangedConnections.append( n.nameChangedSignal().connect( Gaffer.WeakMethod( self.__nameChanged ) ) )
+
+			result = ""
+			for t in self.__titleFormat :
+				if isinstance( t, basestring ) :
+					result += t
+				else :
+					result += t.getName()
+
+			return result
 
 	## Ensures that the specified node has a visible editor of this class type editing
 	# it, creating one if necessary. The `floating` argument may be passed a value of
@@ -192,7 +198,7 @@ class NodeSetEditor( GafferUI.Editor ) :
 		numNames = min( _maxNodes, len( self.__nodeSet ) )
 		if numNames :
 
-			result.append( " : " )
+			result.append( " [" )
 
 			if _reverseNodes :
 				nodes = self.__nodeSet[len(self.__nodeSet)-numNames:]
@@ -207,6 +213,8 @@ class NodeSetEditor( GafferUI.Editor ) :
 
 			if _ellipsis and len( self.__nodeSet ) > _maxNodes :
 				result.append( "..." )
+
+			result.append( "]" )
 
 		return result
 

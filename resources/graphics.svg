@@ -657,7 +657,6 @@
        style="fill:#787878;fill-opacity:1;stroke:#3c3c3c;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        d="M 160 30.5 C 155.02944 30.5 151 34.529437 151 39.5 C 151 44.470563 155.02944 48.5 160 48.5 C 164.97056 48.5 169 44.470563 169 39.5 C 169 34.529437 164.97056 30.5 160 30.5 z M 160 33.5 C 163.31371 33.5 166 36.186292 166 39.5 C 166 42.813708 163.31371 45.5 160 45.5 C 156.68629 45.5 154 42.813708 154 39.5 C 154 36.186292 156.68629 33.5 160 33.5 z "
        transform="translate(0,52.362183)"
-       id="forExport:targetNodesLocked"
        inkscape:label="#path3102" />
     <path
        sodipodi:type="arc"
@@ -670,7 +669,6 @@
        d="m 166,38 a 8,8 0 0 1 -8,8 8,8 0 0 1 -8,-8 8,8 0 0 1 8,-8 8,8 0 0 1 8,8 z"
        transform="matrix(0.375,0,0,0.375,100.75,77.612183)" />
     <path
-       id="forExport:targetNodesUnlocked"
        d="m 180,82.862183 c -4.97056,0 -9,4.029437 -9,9 0,4.970563 4.02944,8.999997 9,8.999997 4.97056,0 9,-4.029434 9,-8.999997 0,-4.970563 -4.02944,-9 -9,-9 z m 0,3 c 3.31371,0 6,2.686292 6,6 0,3.313708 -2.68629,6 -6,6 -3.31371,0 -6,-2.686292 -6,-6 0,-3.313708 2.68629,-6 6,-6 z"
        style="fill:#787878;fill-opacity:1;stroke:#3c3c3c;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
        inkscape:connector-curvature="0"
@@ -3903,5 +3901,69 @@
        d="m 302.30138,18.423424 -3.43097,-2.443491 -3.44073,2.429728 1.26367,-4.018128 -3.37406,-2.521504 4.21197,-0.03985 1.35545,-3.9881025 1.33946,3.9935005 4.21177,0.05672 -3.38412,2.507967 z"
        transform="matrix(15.926225,0,0,16.279373,-4039.9249,656.02277)"
        inkscape:label="#path3064" />
+    <g
+       style="clip-rule:evenodd;fill-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5"
+       transform="translate(-656.40164,-242.30378)"
+       id="forExport:targetNodesUnlocked">
+      <g
+         id="g1166"
+         transform="rotate(-45,1063.0797,502.31281)">
+        <path
+           id="path1164"
+           style="fill:#787878;stroke:#3c3c3c;stroke-width:1px"
+           d="m 1099.5,342.135 1,-1.613 h 5 V 336 c 0.97,-1.378 1.01,-1.482 2,0 v 2 l 8,1 v -2 h 2 v 9 l -2,0.27 v -2.31 l -8,1.04 v 2 c -0.91,1.591 -1.3,1.384 -2,0 v -4.478 h -5 z"
+           inkscape:connector-curvature="0" />
+      </g>
+      <g
+         id="g1170"
+         transform="rotate(-45,1063.0911,503.72257)">
+        <path
+           id="path1168"
+           style="fill:none;stroke:#3c3c3c;stroke-width:1px"
+           d="m 1108.5,339 v 7"
+           inkscape:connector-curvature="0" />
+      </g>
+      <g
+         id="g1174"
+         transform="rotate(-45,1058.8981,494.14549)">
+        <path
+           id="path1172"
+           style="fill:none;stroke:#3c3c3c;stroke-width:1px"
+           d="m 1108.5,339 v 7"
+           inkscape:connector-curvature="0" />
+      </g>
+    </g>
+    <g
+       style="clip-rule:evenodd;fill-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5"
+       transform="translate(-633.25264,-242.30378)"
+       id="forExport:targetNodesLocked">
+      <g
+         id="g1179"
+         transform="rotate(-45,1063.0797,502.31281)">
+        <path
+           id="path1177"
+           style="fill:#ffffff;stroke:#3c3c3c;stroke-width:1px"
+           d="m 1099.5,342.135 1,-1.613 h 5 V 336 c 0.97,-1.378 1.01,-1.482 2,0 v 2 l 8,1 v -2 h 2 v 9 l -2,0.27 v -2.31 l -8,1.04 v 2 c -0.91,1.591 -1.3,1.384 -2,0 v -4.478 h -5 z"
+           inkscape:connector-curvature="0" />
+      </g>
+      <g
+         id="g1183"
+         transform="rotate(-45,1063.0911,503.72257)">
+        <path
+           id="path1181"
+           style="fill:#ffffff;stroke:#3c3c3c;stroke-width:1px"
+           d="m 1108.5,339 v 7"
+           inkscape:connector-curvature="0" />
+      </g>
+      <g
+         id="g1187"
+         transform="rotate(-45,1058.8981,494.14549)">
+        <path
+           id="path1185"
+           style="fill:#ffffff;stroke:#3c3c3c;stroke-width:1px"
+           d="m 1108.5,339 v 7"
+           inkscape:connector-curvature="0" />
+      </g>
+    </g>
   </g>
 </svg>

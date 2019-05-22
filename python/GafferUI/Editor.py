@@ -98,7 +98,7 @@ class Editor( GafferUI.Widget ) :
 
 	## May be overridden to provide sensible default behaviour for
 	# the title, but must return BaseClass.getTitle() if it is non-empty.
-	def getTitle( self ) :
+	def getTitle( self, brief = False ) :
 
 		if self.__title :
 			return self.__title
