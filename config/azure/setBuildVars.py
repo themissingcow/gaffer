@@ -58,20 +58,30 @@ commit = os.environ.get( 'BUILD_SOURCEVERSION' )
 if os.environ.get( 'BUILD_REASON', '' ) == 'PullRequest' :
 	commit = os.environ.get( 'SYSTEM_PULLREQUEST_SOURCECOMMITID' )
 
+sourceBranch =os.environ.get( "BUILD_SOURCEBRANCH", "" )
+
 formatVars = {
 	"buildTypeSuffix" : "-debug" if os.environ.get( "BUILD_TYPE", "" ) == "DEBUG" else "",
 	"platform" : "macos" if sys.platform == "darwin" else "linux",
 	"timestamp" : datetime.datetime.now().strftime( "%Y%m%d%H%M" ),
 	"pullRequest" : os.environ.get( "SYSTEM_PULLREQUEST_PULLREQUESTNUMBER", "UNKNOWN" ),
-	"shortCommit" : commit[:8]
+	"shortCommit" : commit[:8],
+	"tag" : sourceBranch.replace( "refs/tags/", "" ) if "/tags/" in sourceBranch else ""
 }
 
 nameFormats = {
 	"default" : "gaffer-{timestamp}-{shortCommit}-{platform}{buildTypeSuffix}",
-	"PullRequest" : "gaffer-pr{pullRequest}-{shortCommit}-{platform}{buildTypeSuffix}"
+	"PullRequest" : "gaffer-pr{pullRequest}-{shortCommit}-{platform}{buildTypeSuffix}",
+	"IndividualCI-tag" : "gaffer-{tag}-{platform}{buildTypeSuffix}"
 }
 
 trigger = os.environ.get( 'BUILD_REASON', 'Manual' )
+
+# Tag triggers run as InidividualCI, with the appropriate source branch.
+# We wan't to special case this to form our release build name.
+if trigger == 'IndividualCI' and '/tags/' in sourceBranch :
+	trigger += "-tag"
+
 buildName = nameFormats.get( trigger, nameFormats['default'] ).format( **formatVars )
 
 print( "Setting $(buildName) to %s" % buildName )
@@ -80,4 +90,7 @@ print( "##vso[task.setvariable variable=buildName;]%s" % buildName )
 # To make sure our publish always matches the one we use in the build name
 print( "Setting $(buildSourceCommit) to %s" % commit )
 print( "##vso[task.setvariable variable=buildSourceCommit;]%s" % commit )
+
+print( "Setting $(buildTag) to %s" % formatVars["tag"] )
+print( "##vso[task.setvariable variable=buildTag;]%s" % formatVars["tag"] )
 

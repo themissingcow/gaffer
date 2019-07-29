@@ -75,6 +75,7 @@ jobs:
        USER: azureTestUser # ImageWriterTest requires $USER but by default Azure doesn't provide it
 
    - ${{ if eq(parameters.publish, true) }}:
+
      - script: |
          pip install --user azure-storage-blob PyGithub
          ./config/azure/publishBuild.py --archive ./install/$(buildName).tar.gz --repo $(Build.Repository.Name) --commit $(buildSourceCommit)
@@ -83,4 +84,12 @@ jobs:
        env:
          GITHUB_ACCESS_TOKEN: $(githubAccessToken)
          AZURE_ACCESS_TOKEN: $(azureBlobAccessToken)
+
+     - script: |
+         pip install --user azure-storage-blob PyGithub
+         ./config/azure/publishRelease.py --archive ./install/$(buildName).tar.gz --repo $(Build.Repository.Name) --tag $(buildTag)
+       displayName: "Publish Release"
+       condition: ne( variables['buildTag'], '' )
+       env:
+         GITHUB_ACCESS_TOKEN: $(githubAccessToken)
 
