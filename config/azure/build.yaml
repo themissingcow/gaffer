@@ -29,7 +29,7 @@ jobs:
    steps:
 
    # Provides $(buildName) and $(buildSourceCommit)
-   - script: ./config/azure/setBuildVars.py
+   - script: env && ./config/azure/setBuildVars.py
      displayName: 'Set Custom Variables'
 
    - script: |
