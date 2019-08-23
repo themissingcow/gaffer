@@ -171,7 +171,9 @@ class Viewer( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.Viewer( scriptNode )"
+		return "GafferUI.Viewer( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def _updateFromSet( self ) :
 

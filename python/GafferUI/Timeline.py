@@ -246,7 +246,9 @@ class Timeline( GafferUI.Editor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.Timeline( scriptNode )"
+		return "GafferUI.Timeline( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 GafferUI.Editor.registerType( "Timeline", Timeline )
 

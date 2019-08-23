@@ -45,6 +45,8 @@ import GafferUI
 from Qt import QtCore
 from Qt import QtWidgets
 
+import uuid
+
 class _EditorMetaclass( Gaffer.Trackable.__class__ ) :
 
 	def __call__( cls, *args, **kw ) :
@@ -62,9 +64,11 @@ class Editor( GafferUI.Widget ) :
 
 	__metaclass__ = _EditorMetaclass
 
-	def __init__( self, topLevelWidget, scriptNode, **kw ) :
+	def __init__( self, topLevelWidget, scriptNode, _restorationID=None, **kw ) :
 
 		GafferUI.Widget.__init__( self, topLevelWidget, **kw )
+
+		self.__restorationID = _restorationID if _restorationID else str(uuid.uuid4())
 
 		self._qtWidget().setFocusPolicy( QtCore.Qt.ClickFocus )
 
@@ -163,13 +167,31 @@ class Editor( GafferUI.Widget ) :
 
 		return self.__contextChangedConnection
 
+	## The restorationID is a persistent ID for the editor that can be used
+	# to serialise references to a particular editor instance on disk.
+	# Newly constructed editors are assigned a unique id, which is then persisted
+	# though any repr/eval cycles.
+	def _restorationID( self ) :
+
+		return self.__restorationID
+
 	## This must be implemented by all derived classes as it is used for serialisation of layouts.
-	# It is not expected that the script being edited is also serialised as part of this operation -
-	# instead the new script will be provided later as a variable named scriptNode. So a suitable
-	# serialisation will look like "GafferUI.Editor( scriptNode )".
+	# Considerations:
+	#  - It is not expected that the script being edited is also serialised as
+	#    part of this operation - instead the new script will be provided later
+	#    as a variable named scriptNode.
+	#  - The serialisation must include the base class kwargs.
+	# So a suitable serialisation will look like:
+	#    "GafferUI.Editor( scriptNode, %s )" % self._reprStandardKwargs().
 	def __repr__( self ) :
 
 		raise NotImplementedError
+
+	# Returns a string suitable for inclusion in a serialisation containing
+	# all kwargs required for the correct initialisation of the base Editor class.
+	def _reprStandardKwargs( self ) :
+
+		return "_restorationID='%s'" % self.__restorationID
 
 	def __contextChanged( self, context, key ) :
 

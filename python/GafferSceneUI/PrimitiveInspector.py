@@ -222,7 +222,9 @@ class PrimitiveInspector( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferSceneUI.PrimitiveInspector( scriptNode )"
+		return "GafferSceneUI.PrimitiveInspector( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def _updateFromSet( self ) :
 		GafferUI.NodeSetEditor._updateFromSet( self )

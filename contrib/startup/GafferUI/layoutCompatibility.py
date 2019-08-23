@@ -41,6 +41,21 @@ import GafferUI
 
 import imath
 
+# Editors post 55 include a restorationID
+
+if Gaffer.About.compatibilityVersion() < 55 :
+
+	def __initWrapper( originalInit ) :
+
+		def init( self, *args, **kwargs ) :
+			if "_restorationID" in kwargs :
+				del kwargs[ "_restorationID" ]
+			originalInit( self, *args, **kwargs )
+
+		return init
+
+	GafferUI.Editor.__init__ = __initWrapper( GafferUI.Editor.__init__ )
+
 if Gaffer.About.compatibilityVersion() < 54 :
 
 	# Remove new kwargs introduced to store positions/detached panels
@@ -74,4 +89,5 @@ if Gaffer.About.compatibilityVersion() < 54 :
 		return eval( layout.repr, contextDict, contextDict )
 
 	GafferUI.Layouts.create = __create
+
 

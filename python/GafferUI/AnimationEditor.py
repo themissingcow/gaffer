@@ -301,6 +301,8 @@ class AnimationEditor( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.AnimationEditor( scriptNode )"
+		return "GafferUI.AnimationEditor( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 GafferUI.Editor.registerType( "AnimationEditor", AnimationEditor )

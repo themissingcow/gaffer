@@ -94,7 +94,9 @@ class NodeEditor( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.NodeEditor( scriptNode )"
+		return "GafferUI.NodeEditor( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def _updateFromSet( self ) :
 

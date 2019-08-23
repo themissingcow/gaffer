@@ -79,7 +79,9 @@ class UVInspector( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferSceneUI.UVInspector( scriptNode )"
+		return "GafferSceneUI.UVInspector( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def _updateFromSet( self ) :
 

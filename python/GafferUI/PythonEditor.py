@@ -134,7 +134,9 @@ class PythonEditor( GafferUI.Editor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.PythonEditor( scriptNode )"
+		return "GafferUI.PythonEditor( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def __activated( self, widget ) :
 

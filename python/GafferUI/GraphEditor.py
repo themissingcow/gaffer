@@ -274,7 +274,9 @@ class GraphEditor( GafferUI.Editor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.GraphEditor( scriptNode )"
+		return "GafferUI.GraphEditor( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def _nodeMenu( self ) :
 

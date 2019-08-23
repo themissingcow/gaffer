@@ -113,7 +113,9 @@ class HierarchyView( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferSceneUI.HierarchyView( scriptNode )"
+		return "GafferSceneUI.HierarchyView( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def _updateFromSet( self ) :
 

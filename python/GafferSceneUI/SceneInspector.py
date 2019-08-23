@@ -216,7 +216,9 @@ class SceneInspector( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferSceneUI.SceneInspector( scriptNode )"
+		return "GafferSceneUI.SceneInspector( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def _updateFromSet( self ) :
 

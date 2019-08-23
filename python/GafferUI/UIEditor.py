@@ -291,7 +291,9 @@ class UIEditor( GafferUI.NodeSetEditor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.UIEditor( scriptNode )"
+		return "GafferUI.UIEditor( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	@classmethod
 	def __setColor( cls, menu, node ) :

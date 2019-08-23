@@ -80,7 +80,9 @@ class BrowserEditor( GafferUI.Editor ) :
 
 	def __repr__( self ) :
 
-		return "GafferUI.BrowserEditor( scriptNode )"
+		return "GafferUI.BrowserEditor( scriptNode, {kw} )".format(
+			kw = self._reprStandardKwargs()
+		)
 
 	def __modeChanged( self, modeMenu ) :
 
