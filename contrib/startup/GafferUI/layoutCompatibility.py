@@ -41,7 +41,7 @@ import GafferUI
 
 import imath
 
-# Editors post 55 include a restorationID
+# Editors post 55 include some new constructor args
 
 if Gaffer.About.compatibilityVersion() < 55 :
 
@@ -55,6 +55,17 @@ if Gaffer.About.compatibilityVersion() < 55 :
 		return init
 
 	GafferUI.Editor.__init__ = __initWrapper( GafferUI.Editor.__init__ )
+
+	def __initWrapper( originalInit ) :
+
+		def init( self, *args, **kwargs ) :
+			if "nodeSet" in kwargs :
+				del kwargs[ "nodeSet" ]
+			originalInit( self, *args, **kwargs )
+
+		return init
+
+	GafferUI.NodeSetEditor.__init__ = __initWrapper( GafferUI.NodeSetEditor.__init__ )
 
 # Layouts post 54 have additional kwargs
 

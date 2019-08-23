@@ -58,7 +58,7 @@ class NodeSetEditor( GafferUI.Editor ) :
 
 	__nodeSetDriverModes = {}
 
-	def __init__( self, topLevelWidget, scriptNode, **kw ) :
+	def __init__( self, topLevelWidget, scriptNode, nodeSet=None, **kw ) :
 
 		self.__nodeSet = Gaffer.StandardSet()
 		self.__nodeSetChangedSignal = GafferUI.WidgetSignal()
@@ -73,9 +73,12 @@ class NodeSetEditor( GafferUI.Editor ) :
 		self.__titleFormat = None
 
 		self.__updateScheduled = False
+
 		# allow derived classes to call _updateFromSet() themselves after construction,
 		# to avoid being called when they're only half constructed.
-		self.__setNodeSetInternal( self.scriptNode().selection(), callUpdateFromSet=False )
+		if nodeSet is None:
+			nodeSet = self.scriptNode().selection()
+		self.__setNodeSetInternal( nodeSet, callUpdateFromSet=False )
 
 	## Sets the nodes that will be displayed by this editor. As members are
 	# added to and removed from the set, the UI will be updated automatically
@@ -423,6 +426,21 @@ class NodeSetEditor( GafferUI.Editor ) :
 		if self.__updateScheduled :
 			self.__updateScheduled = False
 			self._updateFromSet()
+
+	def _reprStandardKwargs( self ) :
+
+		s = super( NodeSetEditor, self )._reprStandardKwargs()
+
+		# If we're not driven, serialise our node set if it supports it
+		driver, _ = self.getNodeSetDriver()
+		if driver is None :
+			setRepr = repr( self.getNodeSet() )
+			# Check we return something sensible from repr
+			# Sets that haven't implemented repr will return something like
+			# <Gaffer._Gaffer.StandardSet object at 0x139daab50>
+			if not setRepr.startswith( "<" ) :
+				s += ", nodeSet=%s" % setRepr
+		return s
 
 class _EditorWindow( GafferUI.Window ) :
 
