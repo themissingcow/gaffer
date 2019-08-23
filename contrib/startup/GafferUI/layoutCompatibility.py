@@ -56,13 +56,22 @@ if Gaffer.About.compatibilityVersion() < 55 :
 
 	GafferUI.Editor.__init__ = __initWrapper( GafferUI.Editor.__init__ )
 
-if Gaffer.About.compatibilityVersion() < 54 :
+# Layouts post 54 have additional kwargs
 
-	# Remove new kwargs introduced to store positions/detached panels
+kwargsToRemove = []
+
+if Gaffer.About.compatibilityVersion() < 55 :
+	kwargsToRemove.append( "editorState" )
+
+if Gaffer.About.compatibilityVersion() < 54 :
+	kwargsToRemove.extend( "windowState", "detachedPanels" )
+
+if kwargsToRemove :
+
 	def __initWrapper( originalInit ) :
 
 		def init( self, *args, **kwargs ) :
-			for kw in ( "windowState", "detachedPanels" ) :
+			for kw in kwargsToRemove :
 				if kw in kwargs :
 					del kwargs[kw]
 			originalInit( self, *args, **kwargs )
@@ -71,7 +80,10 @@ if Gaffer.About.compatibilityVersion() < 54 :
 
 	GafferUI.CompoundEditor.__init__ = __initWrapper( GafferUI.CompoundEditor.__init__ )
 
-	# windowState requires imath, so we need to modify the eval environment
+# Layouts post 54 require imath
+
+if Gaffer.About.compatibilityVersion() < 54 :
+
 	def __create( self, name, scriptNode ) :
 
 		layout = self._Layouts__namedLayouts[name]
@@ -89,5 +101,4 @@ if Gaffer.About.compatibilityVersion() < 54 :
 		return eval( layout.repr, contextDict, contextDict )
 
 	GafferUI.Layouts.create = __create
-
 

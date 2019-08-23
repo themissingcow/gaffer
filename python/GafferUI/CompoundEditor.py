@@ -53,7 +53,7 @@ from Qt import QtWidgets
 
 class CompoundEditor( GafferUI.Editor ) :
 
-	def __init__( self, scriptNode, children=None, detachedPanels=None, windowState=None, **kw ) :
+	def __init__( self, scriptNode, children=None, detachedPanels=None, windowState=None, editorState=None, **kw ) :
 
 		# We have 1px extra padding within the splits themselves to accommodate highlighting
 		self.__splitContainer = _SplitContainer( borderWidth = 5 )
@@ -74,6 +74,10 @@ class CompoundEditor( GafferUI.Editor ) :
 		if detachedPanels :
 			for panelArgs in detachedPanels  :
 				self._createDetachedPanel( **panelArgs )
+
+		# By Now, all Editors will have been created, so we can restore any state
+		if editorState :
+			self.__restoreEditorState( editorState )
 
 	## Returns all the editors that comprise this CompoundEditor, optionally
 	# filtered by type.
@@ -163,12 +167,50 @@ class CompoundEditor( GafferUI.Editor ) :
 		# Editors are public classes and so they are stored by repr.
 		# We don't want to expose the implementation of detached panels
 		# (considered private) so instead we save their construction args.
-		return "GafferUI.CompoundEditor( scriptNode, children = %s, detachedPanels = %s, windowState = %s )" \
+		return "GafferUI.CompoundEditor( scriptNode, children = %s, detachedPanels = %s, windowState = %s, editorState = %s )" \
 				% (
 					self.__splitContainer.serialiseChildren(),
 					self.__serialiseDetachedPanels(),
-					self._serializeWindowState()
+					self._serializeWindowState(),
+					self.__captureEditorState()
 				)
+
+	def __captureEditorState( self ) :
+
+		state = {}
+
+		# Store the driver (if set) for any NodeSetEditors
+		nodeSetEditors = [ e for e in self.editors() if isinstance( e, GafferUI.NodeSetEditor ) ]
+		for n in nodeSetEditors :
+			driver, mode = n.getNodeSetDriver()
+			if driver is not None :
+				state[ n._restorationID() ] = {
+					"driver" : driver._restorationID(),
+					"driverMode" : mode
+				}
+
+		return state
+
+	def __restoreEditorState( self, editorState ) :
+
+		editors = { e._restorationID():e for e in self.editors() }
+
+		for id_, state in editorState.items() :
+
+			if "driver" in state :
+				editor = editors[ id_ ]
+				driver = editors[ state["driver"] ]
+				# The mode may not be registered any more, so make sure
+				# we fail gracefully here
+				try :
+					editor.setNodeSetDriver( driver, state["driverMode"] )
+				except Exception as e :
+					sys.stderr.write(
+						"Unable to restore node set driver for {editor}: {error}\n".format(
+							editor = editorID,
+							error = "%s: %s" % ( type(e), e )
+						)
+					)
 
 	# visibility for Test Harness
 	def _serializeWindowState( self ) :
