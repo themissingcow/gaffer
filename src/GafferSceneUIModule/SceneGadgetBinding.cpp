@@ -35,6 +35,8 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include "boost/python.hpp"
+#include "boost/python/tuple.hpp"
+
 
 #include "SceneGadgetBinding.h"
 
@@ -132,6 +134,18 @@ IECore::InternedStringVectorDataPtr objectAt( SceneGadget &g, IECore::LineSegmen
 	return nullptr;
 }
 
+tuple objectAndDepthAt( SceneGadget &g, IECore::LineSegment3f &l )
+{
+	IECore::InternedStringVectorDataPtr result = new IECore::InternedStringVectorData;
+	float depth = std::numeric_limits<float>::max();
+	if( g.objectAt( l, result->writable(), depth ) )
+	{
+
+		return boost::python::make_tuple( true, result, depth );
+	}
+	return boost::python::make_tuple( false, result, depth );
+}
+
 } // namespace
 
 void GafferSceneUIModule::bindSceneGadget()
@@ -157,6 +171,7 @@ void GafferSceneUIModule::bindSceneGadget()
 		.def( "setSelectionMask", &SceneGadget::setSelectionMask )
 		.def( "getSelectionMask", &getSelectionMask )
 		.def( "objectAt", &objectAt )
+		.def( "objectAndDepthAt", &objectAndDepthAt )
 		.def( "objectsAt", &SceneGadget::objectsAt )
 		.def( "setSelection", &SceneGadget::setSelection )
 		.def( "getSelection", &SceneGadget::getSelection, return_value_policy<copy_const_reference>() )

@@ -270,6 +270,12 @@ const IECore::StringVectorData *SceneGadget::getSelectionMask() const
 
 bool SceneGadget::objectAt( const IECore::LineSegment3f &lineInGadgetSpace, GafferScene::ScenePlug::ScenePath &path ) const
 {
+	float hitDepth;
+	return objectAt( lineInGadgetSpace, path, hitDepth );
+}
+
+bool SceneGadget::objectAt( const IECore::LineSegment3f &lineInGadgetSpace, GafferScene::ScenePlug::ScenePath &path, float &hitDepth ) const
+{
 	std::vector<IECoreGL::HitRecord> selection;
 	{
 		ViewportGadget::SelectionScope selectionScope( lineInGadgetSpace, this, selection, IECoreGL::Selector::IDRender );
@@ -299,6 +305,7 @@ bool SceneGadget::objectAt( const IECore::LineSegment3f &lineInGadgetSpace, Gaff
 	}
 
 	path = *PathMatcher::Iterator( paths.begin() );
+	hitDepth = depthMin;
 	return true;
 }
 

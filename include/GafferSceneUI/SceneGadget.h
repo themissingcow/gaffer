@@ -151,6 +151,7 @@ class GAFFERSCENEUI_API SceneGadget : public GafferUI::Gadget
 		/// through gadget space. Returns true on success and false if there is no
 		/// such object.
 		bool objectAt( const IECore::LineSegment3f &lineInGadgetSpace, GafferScene::ScenePlug::ScenePath &path ) const;
+		bool objectAt( const IECore::LineSegment3f &lineInGadgetSpace, GafferScene::ScenePlug::ScenePath &path, float &hitDepth ) const;
 		/// Fills paths with all objects intersected by a rectangle in screen space,
 		/// defined by two corners in gadget space (as required for drag selection).
 		size_t objectsAt(

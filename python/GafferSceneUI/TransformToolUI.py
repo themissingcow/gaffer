@@ -34,6 +34,7 @@
 #
 ##########################################################################
 
+import functools
 import sys
 
 import imath
@@ -214,3 +215,65 @@ class _SelectionWidget( GafferUI.Frame ) :
 			return False
 
 		GafferUI.NodeEditor.acquire( widget.getGraphComponent().node(), floating = True )
+
+
+def moveSelectionToClickPointAvailable( viewer, view, menu ) :
+
+	sceneSelection = GafferSceneUI.ContextAlgo.getSelectedPaths( viewer.getContext() )
+	return not sceneSelection.isEmpty()
+
+def getTransformPlug( scenePlug, path ) :
+
+	def historyWalk( history ) :
+
+		node =  history.scene.node()
+		if isinstance( node, GafferScene.ObjectSource ) :
+			return node["transform"]
+
+		for p in history.predecessors :
+			plug = historyWalk( p )
+			if plug is not None :
+				return plug
+
+	history = GafferScene.SceneAlgo.history( scenePlug["transform"], path )
+	return historyWalk( history )
+
+def moveSelectionToClickPoint( viewer, view, menu ) :
+
+	popupPos = menu.popupPosition( relativeTo = viewer )
+
+	sceneGadget = view.viewportGadget().getPrimaryChild()
+	worldLine = view.viewportGadget().rasterToWorldSpace(
+		imath.V2f( popupPos.x, popupPos.y)
+	)
+
+	hit, path, depth = sceneGadget.objectAndDepthAt( worldLine )
+	if not hit :
+		return None
+
+	clip = view.viewportGadget().getCamera().getClippingPlanes()
+	depth = (2.0 * clip[0] * clip[1]) / (clip[1] + clip[0] - ( depth * 2.0 - 1.0 ) * (clip[1] - clip[0]));
+	hitPoint = worldLine.p0 + ( worldLine.normalizedDirection() * depth )
+	node = viewer.getNodeSet()[0]
+
+	selection = GafferSceneUI.ContextAlgo.getSelectedPaths( viewer.getContext() ).paths()
+
+	with view.getContext() :
+		for s in selection :
+			transformPlug = getTransformPlug( node["out"], s )
+			if transformPlug is not None :
+				transformPlug["translate"].setValue( hitPoint )
+
+def __viewContextMenu( viewer, view, menuDefinition ) :
+
+	if not isinstance( view, GafferSceneUI.SceneView ) :
+		return False
+
+	menuDefinition.append( "/Move Selection Here", {
+		"command" : functools.partial( moveSelectionToClickPoint, viewer, view ),
+		"active" : functools.partial( moveSelectionToClickPointAvailable, viewer, view )
+	} )
+
+
+GafferUI.Viewer.viewContextMenuSignal().connect( __viewContextMenu, scoped = False )
+
