@@ -126,6 +126,18 @@ void collapseSelection( SceneView &view )
 	view.collapseSelection();
 }
 
+boost::python::tuple intersectionAt( SceneView &view, const Imath::V2f &point )
+{
+	IECore::InternedStringVectorDataPtr result = new IECore::InternedStringVectorData;
+	Imath::V3f pos;
+	if( view.intersectionAt( point, result->writable(), pos ) )
+	{
+
+		return boost::python::make_tuple( true, result, pos );
+	}
+	return boost::python::make_tuple( false, result, pos );
+}
+
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
@@ -289,6 +301,7 @@ void GafferSceneUIModule::bindViews()
 		.staticmethod( "registerShadingMode" )
 		.def( "registeredShadingModes", &registeredShadingModes )
 		.staticmethod( "registeredShadingModes" )
+		.def( "intersectionAt", &intersectionAt )
 	;
 
 	GafferBindings::NodeClass<ShaderView>()

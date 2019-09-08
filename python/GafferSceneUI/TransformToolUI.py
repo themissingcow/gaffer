@@ -241,19 +241,10 @@ def getTransformPlug( scenePlug, path ) :
 def moveSelectionToClickPoint( viewer, view, menu ) :
 
 	popupPos = menu.popupPosition( relativeTo = viewer )
-
-	sceneGadget = view.viewportGadget().getPrimaryChild()
-	worldLine = view.viewportGadget().rasterToWorldSpace(
-		imath.V2f( popupPos.x, popupPos.y)
-	)
-
-	hit, path, depth = sceneGadget.objectAndDepthAt( worldLine )
+	hit, path, point = view.intersectionAt( imath.V2f( popupPos.x, popupPos.y ) )
 	if not hit :
 		return None
 
-	clip = view.viewportGadget().getCamera().getClippingPlanes()
-	depth = (2.0 * clip[0] * clip[1]) / (clip[1] + clip[0] - ( depth * 2.0 - 1.0 ) * (clip[1] - clip[0]));
-	hitPoint = worldLine.p0 + ( worldLine.normalizedDirection() * depth )
 	node = viewer.getNodeSet()[0]
 
 	selection = GafferSceneUI.ContextAlgo.getSelectedPaths( viewer.getContext() ).paths()
@@ -262,7 +253,7 @@ def moveSelectionToClickPoint( viewer, view, menu ) :
 		for s in selection :
 			transformPlug = getTransformPlug( node["out"], s )
 			if transformPlug is not None :
-				transformPlug["translate"].setValue( hitPoint )
+				transformPlug["translate"].setValue( point )
 
 def __viewContextMenu( viewer, view, menuDefinition ) :
 
@@ -273,7 +264,6 @@ def __viewContextMenu( viewer, view, menuDefinition ) :
 		"command" : functools.partial( moveSelectionToClickPoint, viewer, view ),
 		"active" : functools.partial( moveSelectionToClickPointAvailable, viewer, view )
 	} )
-
 
 GafferUI.Viewer.viewContextMenuSignal().connect( __viewContextMenu, scoped = False )
 

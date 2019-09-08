@@ -102,6 +102,8 @@ class GAFFERSCENEUI_API SceneView : public GafferUI::View
 		/// empty bound.
 		const Imath::Box2f &resolutionGate() const;
 
+		bool intersectionAt( const Imath::V2f &rasterCoord, GafferScene::ScenePlug::ScenePath &hitPath, Imath::V3f &hitPoint ) const;
+
 		typedef std::function<GafferScene::SceneProcessorPtr ()> ShadingModeCreator;
 
 		static void registerShadingMode( const std::string &name, ShadingModeCreator );

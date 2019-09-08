@@ -1562,6 +1562,28 @@ const Box2f &SceneView::resolutionGate() const
 	return m_camera->resolutionGate();
 }
 
+bool SceneView::intersectionAt( const Imath::V2f &rasterCoord, GafferScene::ScenePlug::ScenePath &hitPath, Imath::V3f &hitPoint ) const
+{
+	const SceneGadget* sceneGadget = static_cast<const SceneGadget *>( viewportGadget()->getPrimaryChild() );
+
+	LineSegment3f worldLine = viewportGadget()->rasterToWorldSpace( rasterCoord );
+
+	float glDepth = 0.0;
+	bool hit = sceneGadget->objectAt( worldLine, hitPath, glDepth );
+	if( !hit )
+	{
+		return false;
+	}
+
+	// hitDepth is in GL space, we need to normalise and re-map to liner world units
+	Imath::V2f c = viewportGadget()->getCamera()->getClippingPlanes();
+	float depth = ( 2.0f * c[0] * c[1] ) / ( c[1] + c[0] - ( glDepth * 2.0f - 1.0f ) * ( c[1] - c[0] ) );
+
+	hitPoint = worldLine.p0 + ( worldLine.normalizedDirection() * depth );
+
+	return true;
+}
+
 void SceneView::registerShadingMode( const std::string &name, ShadingModeCreator creator )
 {
 	ShadingMode::registerShadingMode( name, creator );
