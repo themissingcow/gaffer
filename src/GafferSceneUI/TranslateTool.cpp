@@ -82,6 +82,10 @@ TranslateTool::TranslateTool( SceneView *view, const std::string &name )
 		handle->dragEndSignal().connect( boost::bind( &TranslateTool::dragEnd, this ) );
 	}
 
+	SceneGadget *sg = runTimeCast<SceneGadget>( this->view()->viewportGadget()->getPrimaryChild() );
+	// We have to insert this before the underlying SelectionTool connection or we never see the event
+	sg->buttonPressSignal().connect( 0, boost::bind( &TranslateTool::buttonPress, this, ::_2 ) );
+
 	storeIndexOfNextChild( g_firstPlugIndex );
 
 	addChild( new IntPlug( "orientation", Plug::In, Parent, Local, World ) );
@@ -149,6 +153,26 @@ void TranslateTool::translate( const Imath::V3f &offset )
 	{
 		Translation( s, orientation ).apply( offset );
 	}
+}
+
+bool TranslateTool::buttonPress( const GafferUI::ButtonEvent &event )
+{
+	if( !activePlug()->getValue() )
+	{
+		return false;
+	}
+
+	if( event.buttons != ButtonEvent::Left || !inTargetedMode() )
+	{
+		return false;
+	}
+
+	GafferScene::ScenePlug::ScenePath path;
+	Imath::V3f pos;
+
+	static_cast<SceneView *>( view() )->intersectionAt( Imath::V2f( event.line.p0.x, event.line.p0.y ), path, pos );
+
+	return true;
 }
 
 IECore::RunTimeTypedPtr TranslateTool::dragBegin()

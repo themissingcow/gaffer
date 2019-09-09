@@ -330,7 +330,8 @@ TransformTool::TransformTool( SceneView *view, const std::string &name )
 		m_selectionDirty( true ),
 		m_priorityPathsDirty( true ),
 		m_dragging( false ),
-		m_mergeGroupId( 0 )
+		m_mergeGroupId( 0 ),
+		m_targetedMode( false )
 {
 	view->viewportGadget()->addChild( m_handles );
 	m_handles->setVisible( false );
@@ -343,6 +344,8 @@ TransformTool::TransformTool( SceneView *view, const std::string &name )
 	scenePlug()->setInput( view->inPlug<ScenePlug>() );
 
 	view->viewportGadget()->keyPressSignal().connect( boost::bind( &TransformTool::keyPress, this, ::_2 ) );
+	view->viewportGadget()->keyReleaseSignal().connect( boost::bind( &TransformTool::keyRelease, this, ::_2 ) );
+	view->viewportGadget()->leaveSignal().connect( boost::bind( &TransformTool::viewportLeave, this, ::_2 ) );
 	plugDirtiedSignal().connect( boost::bind( &TransformTool::plugDirtied, this, ::_1 ) );
 
 	connectToViewContext();
@@ -695,6 +698,13 @@ std::string TransformTool::undoMergeGroup() const
 
 bool TransformTool::keyPress( const GafferUI::KeyEvent &event )
 {
+	// We track this regardless of whether we're active or not in case the tool
+	// is changed whilst they key is held down
+	if( event.key == "V" )
+	{
+		m_targetedMode = true;
+	}
+
 	if( !activePlug()->getValue() )
 	{
 		return false;
@@ -734,6 +744,25 @@ bool TransformTool::keyPress( const GafferUI::KeyEvent &event )
 	}
 
 	return false;
+}
+
+bool TransformTool::keyRelease( const GafferUI::KeyEvent &event )
+{
+	if( event.key == "V" )
+	{
+		m_targetedMode = false;
+	}
+
+	return false;
+}
+
+void TransformTool::viewportLeave( const GafferUI::ButtonEvent & event )
+{
+	// We loose keyRelease events in a variety of scenarios so turn if off
+	// whenever the mouse leaves the parent. Key-repeat events will cause
+	// it to be re-enabled when the mouse re-enters if the key is still
+	// held down at that time.
+	m_targetedMode = false;
 }
 
 bool TransformTool::canSetValueOrAddKey( const Gaffer::FloatPlug *plug )

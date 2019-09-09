@@ -103,6 +103,8 @@ class GAFFERSCENEUI_API TranslateTool : public TransformTool
 
 		std::vector<Translation> m_drag;
 
+		bool buttonPress( const GafferUI::ButtonEvent &event );
+
 		static ToolDescription<TranslateTool, SceneView> g_toolDescription;
 		static size_t g_firstPlugIndex;
 

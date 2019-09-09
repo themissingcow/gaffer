@@ -186,6 +186,8 @@ class GAFFERSCENEUI_API TransformTool : public GafferSceneUI::SelectionTool
 		static bool canSetValueOrAddKey( const Gaffer::FloatPlug *plug );
 		static void setValueOrAddKey( Gaffer::FloatPlug *plug, float time, float value );
 
+		bool inTargetedMode() const { return m_targetedMode; }
+
 	private :
 
 		void connectToViewContext();
@@ -195,6 +197,8 @@ class GAFFERSCENEUI_API TransformTool : public GafferSceneUI::SelectionTool
 		void updateSelection() const;
 		void preRender();
 		bool keyPress( const GafferUI::KeyEvent &event );
+		bool keyRelease( const GafferUI::KeyEvent &event );
+		void viewportLeave( const GafferUI::ButtonEvent & event );
 
 		boost::signals::scoped_connection m_contextChangedConnection;
 		boost::signals::scoped_connection m_preRenderConnection;
@@ -209,6 +213,8 @@ class GAFFERSCENEUI_API TransformTool : public GafferSceneUI::SelectionTool
 
 		bool m_dragging;
 		int m_mergeGroupId;
+
+		bool m_targetedMode;
 
 		static size_t g_firstPlugIndex;
 
