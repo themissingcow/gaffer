@@ -895,6 +895,12 @@ class _EventFilter( QtCore.QObject ) :
 		self.__lastButtonPressEvent = None
 		self.__dragDropEvent = None
 
+		# Used to pair keyPress/keyRelease events.
+		# We need a map to handle per-key mappings as the mouse could move
+		# with a single key held, then a subsequent key pressed over the new
+		# widget. We only pair events for the same key.
+		self.__lastKeyPressWidgets = {}
+
 		# the vast majority ( ~99% at time of testing ) of events entering
 		# eventFilter() are totally irrelevant to us. it's therefore very
 		# important for interactivity to exit the filter as fast as possible
@@ -1009,15 +1015,33 @@ class _EventFilter( QtCore.QObject ) :
 		if self.__updateDragModifiers( qObject, qEvent ) :
 			return True
 
-		widget = Widget._owner( qObject )
-		if widget._keyPressSignal is not None :
+		target = Widget._owner( qObject )
+
+		# We always store the widget here, to pair events, even if it doesn't
+		# have a signal, otherwise some widget could still receive a release
+		# if the mouse is moved.
+		# If we already have one, then it means were in a key repeat situation
+		# (where we get multiple presses before a release), then we should
+		# not update the widget.
+		previousTarget = self.__lastKeyPressWidgets.get( qEvent.key(), None )
+		if previousTarget is not None :
+			# Even if the widget has died, it should logically still receive the
+			# paired (well, repeated) events.
+			if previousTarget() is None :
+				return False
+			else :
+				target = previousTarget()
+		else :
+			self.__lastKeyPressWidgets[ qEvent.key() ] = weakref.ref( target )
+
+		if target._keyPressSignal is not None :
 
 			event = GafferUI.KeyEvent(
 				Widget._key( qEvent.key() ),
 				Widget._modifiers( qEvent.modifiers() ),
 			)
 
-			return widget._keyPressSignal( widget, event )
+			return target._keyPressSignal( target, event )
 
 		return False
 
@@ -1026,15 +1050,31 @@ class _EventFilter( QtCore.QObject ) :
 		if self.__updateDragModifiers( qObject, qEvent ) :
 			return True
 
-		widget = Widget._owner( qObject )
-		if widget._keyReleaseSignal is not None :
+		# Because we implement focus-follows-mouse to allow assorted
+		# keyboard shortcuts to be widget-specific, it means that a widget
+		# that receives a key-press might not see the key-release. This
+		# generally makes no sense, so we ensure the last widget to
+		# get the key press, gets the release
+		target = Widget._owner( qObject )
+
+		pressEventWidget = self.__lastKeyPressWidgets.pop( qEvent.key(), None )
+		if pressEventWidget is not None :
+			# Even if the old target has died, it should still receive the event
+			# from the point of view of the other widget that would now get an
+			# unexpected release.
+			if pressEventWidget() is None :
+				return False
+			else :
+				target = pressEventWidget()
+
+		if target._keyReleaseSignal is not None :
 
 			event = GafferUI.KeyEvent(
 				Widget._key( qEvent.key() ),
 				Widget._modifiers( qEvent.modifiers() ),
 			)
 
-			return widget._keyReleaseSignal( widget, event )
+			return target._keyReleaseSignal( target, event )
 
 		return False
 
