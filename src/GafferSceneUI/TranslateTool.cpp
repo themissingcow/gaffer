@@ -46,6 +46,8 @@
 #include "Gaffer/ScriptNode.h"
 #include "Gaffer/UndoScope.h"
 
+#include "IECore/NullObject.h"
+
 #include "OpenEXR/ImathMatrixAlgo.h"
 
 #include "boost/bind.hpp"
@@ -85,6 +87,11 @@ TranslateTool::TranslateTool( SceneView *view, const std::string &name )
 	SceneGadget *sg = runTimeCast<SceneGadget>( this->view()->viewportGadget()->getPrimaryChild() );
 	// We have to insert this before the underlying SelectionTool connection or we never see the event
 	sg->buttonPressSignal().connect( 0, boost::bind( &TranslateTool::buttonPress, this, ::_2 ) );
+	sg->dragBeginSignal().connect( 0, boost::bind( &TranslateTool::targetDragBegin, this, ::_2 ) );
+	sg->dragEnterSignal().connect( 0, boost::bind( &TranslateTool::targetDragEnter, this, ::_2 ) );
+	sg->dragMoveSignal().connect( 0, boost::bind( &TranslateTool::targetDragMove, this, ::_2 ) );
+	sg->dragLeaveSignal().connect( 0, boost::bind( &TranslateTool::targetDragLeave, this, ::_2 ) );
+	sg->dragEndSignal().connect( 0, boost::bind( &TranslateTool::targetDragEnd, this, ::_2 ) );
 
 	storeIndexOfNextChild( g_firstPlugIndex );
 
@@ -155,26 +162,6 @@ void TranslateTool::translate( const Imath::V3f &offset )
 	}
 }
 
-bool TranslateTool::buttonPress( const GafferUI::ButtonEvent &event )
-{
-	if( !activePlug()->getValue() )
-	{
-		return false;
-	}
-
-	if( event.buttons != ButtonEvent::Left || !inTargetedMode() )
-	{
-		return false;
-	}
-
-	GafferScene::ScenePlug::ScenePath path;
-	Imath::V3f pos;
-
-	static_cast<SceneView *>( view() )->intersectionAt( Imath::V2f( event.line.p0.x, event.line.p0.y ), path, pos );
-
-	return true;
-}
-
 IECore::RunTimeTypedPtr TranslateTool::dragBegin()
 {
 	m_drag.clear();
@@ -204,6 +191,112 @@ bool TranslateTool::dragEnd()
 	return false;
 }
 
+bool TranslateTool::buttonPress( const GafferUI::ButtonEvent &event )
+{
+	if( !activePlug()->getValue() )
+	{
+		return false;
+	}
+
+	if( event.buttons != ButtonEvent::Left || !inTargetedMode() )
+	{
+		return false;
+	}
+
+	const std::vector<Selection> &sel = selection();
+
+	m_drag.clear();
+	m_targetOrigins.clear();
+
+	for( const auto &s : sel )
+	{
+		m_drag.push_back( Translation( s, World ) );
+
+		M44f worldTransform = s.upstreamScene->fullTransform( s.upstreamPath );
+		V3f origin = V3f( 0.0f ) * worldTransform;
+		m_targetOrigins.push_back( origin );
+	}
+
+	UndoScope undoScope( selection()[0].transformPlug->ancestor<ScriptNode>(), UndoScope::Enabled, undoMergeGroup() );
+
+	GafferScene::ScenePlug::ScenePath path;
+	Imath::V3f targetPos;
+	static_cast<SceneView *>( view() )->intersectionAt( event.line, path, targetPos );
+	for( size_t i = 0, max = sel.size(); i < max; ++i )
+	{
+		m_drag[ i ].apply( targetPos - m_targetOrigins[ i ] );
+	}
+
+	return true;
+}
+
+IECore::RunTimeTypedPtr TranslateTool::targetDragBegin( const GafferUI::DragDropEvent &event )
+{
+	if( !isActiveInTargetedMode( event ) )
+	{
+		return nullptr;
+	}
+
+	TransformTool::dragBegin();
+	return IECore::NullObject::defaultNullObject();
+}
+
+bool TranslateTool::targetDragEnter( const GafferUI::DragDropEvent &event )
+{
+	return isActiveInTargetedMode( event );
+}
+
+bool TranslateTool::targetDragMove( const GafferUI::DragDropEvent &event )
+{
+	if( !isActiveInTargetedMode( event ) )
+	{
+		return false;
+	}
+
+	UndoScope undoScope( selection()[0].transformPlug->ancestor<ScriptNode>(), UndoScope::Enabled, undoMergeGroup() );
+
+	GafferScene::ScenePlug::ScenePath path;
+	Imath::V3f targetPos;
+	static_cast<SceneView *>( view() )->intersectionAt( event.line, path, targetPos );
+
+	const std::vector<Selection> &sel = selection();
+	for( size_t i = 0, max = sel.size(); i < max; ++i )
+	{
+		m_drag[ i ].apply( targetPos - m_targetOrigins[ i ] );
+	}
+	return true;
+}
+
+bool TranslateTool::targetDragLeave( const GafferUI::DragDropEvent &event )
+{
+	return isActiveInTargetedMode( event );
+}
+
+bool TranslateTool::targetDragEnd( const GafferUI::DragDropEvent &event )
+{
+	if( !isActiveInTargetedMode( event ) )
+	{
+		return false;
+	}
+
+	TransformTool::dragEnd();
+	return true;
+}
+
+bool TranslateTool::isActiveInTargetedMode( const GafferUI::DragDropEvent &event ) const
+{
+	if( !activePlug()->getValue() )
+	{
+		return false;
+	}
+
+	if( event.buttons != ButtonEvent::Left || !inTargetedMode() )
+	{
+		return false;
+	}
+
+	return true;;
+}
 //////////////////////////////////////////////////////////////////////////
 // TranslateTool::Translation
 //////////////////////////////////////////////////////////////////////////

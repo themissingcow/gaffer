@@ -1564,9 +1564,13 @@ const Box2f &SceneView::resolutionGate() const
 
 bool SceneView::intersectionAt( const Imath::V2f &rasterCoord, GafferScene::ScenePlug::ScenePath &hitPath, Imath::V3f &hitPoint ) const
 {
-	const SceneGadget* sceneGadget = static_cast<const SceneGadget *>( viewportGadget()->getPrimaryChild() );
+	const LineSegment3f worldLine = viewportGadget()->rasterToWorldSpace( rasterCoord );
+	return intersectionAt( worldLine, hitPath, hitPoint );
+}
 
-	LineSegment3f worldLine = viewportGadget()->rasterToWorldSpace( rasterCoord );
+bool SceneView::intersectionAt( const IECore::LineSegment3f &worldLine, GafferScene::ScenePlug::ScenePath &hitPath, Imath::V3f &hitPoint ) const
+{
+	const SceneGadget* sceneGadget = static_cast<const SceneGadget *>( viewportGadget()->getPrimaryChild() );
 
 	float glDepth = 0.0;
 	bool hit = sceneGadget->objectAt( worldLine, hitPath, glDepth );

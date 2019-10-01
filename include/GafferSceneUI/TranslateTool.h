@@ -101,6 +101,14 @@ class GAFFERSCENEUI_API TranslateTool : public TransformTool
 		bool dragMove( const GafferUI::Gadget *gadget, const GafferUI::DragDropEvent &event );
 		bool dragEnd();
 
+		bool isActiveInTargetedMode( const GafferUI::DragDropEvent &event ) const;
+		IECore::RunTimeTypedPtr targetDragBegin( const GafferUI::DragDropEvent &event );
+		bool targetDragEnter( const GafferUI::DragDropEvent &event );
+		bool targetDragMove( const GafferUI::DragDropEvent &event );
+		bool targetDragLeave( const GafferUI::DragDropEvent &event );
+		bool targetDragEnd( const GafferUI::DragDropEvent &event );
+		std::vector<Imath::V3f> m_targetOrigins;
+
 		std::vector<Translation> m_drag;
 
 		bool buttonPress( const GafferUI::ButtonEvent &event );
