@@ -35,6 +35,7 @@
 #
 ##########################################################################
 
+import collections
 import inspect
 import functools
 import weakref
@@ -417,7 +418,7 @@ class Menu( GafferUI.Widget ) :
 				self.__initSearch( item.subMenu, dirname=fullPath )
 
 			else :
-				label = getattr( item, "searchText", getattr( item, "label", name ) )
+				label = getattr( item, "label", name )
 				if label in self.__searchStructure :
 					self.__searchStructure[label].append( ( item, fullPath ) )
 				else :
@@ -484,28 +485,34 @@ class Menu( GafferUI.Widget ) :
 		maxActions = 30
 		overflowMenu = None
 
-		for match in matchedItems:
+		targetMenu = self.__searchMenu
 
-			name = match[0]
-			actions = match[3]
+		itemsByCategory = self.__sortItemsByCategory( matchedItems )
+		for category, categoryItems in itemsByCategory.items() :
 
-			if len( actions ) > 1 :
-				for ( action, path ) in actions :
-					action.setText( self.__disambiguate( name, path ) )
+			d = IECore.MenuItemDefinition( label = category )
+			targetMenu.addAction( _DividerAction( d, targetMenu ) )
 
-			# since all have the same name, sorting alphabetically on disambiguation text
-			for ( action, path ) in sorted( actions, key = lambda x : x[0].text() ) :
+			for name, actions in categoryItems.items() :
 
-				if numActions < maxActions :
-					self.__searchMenu.addAction( action )
-				else :
-					if overflowMenu is None :
-						self.__searchMenu.addSeparator()
-						overflowMenu = _Menu( self.__searchMenu, "More Results" )
-						self.__searchMenu.addMenu( overflowMenu )
-					overflowMenu.addAction( action )
+				if len( actions ) > 1 :
+					for ( action, path ) in actions :
+						action.setText( self.__disambiguate( path.split("/")[-1], path ) )
 
-				numActions += 1
+				# since all have the same name, sorting alphabetically on disambiguation text
+				for ( action, path ) in sorted( actions, key = lambda x : x[0].text() ) :
+
+					if numActions < maxActions :
+						self.__searchMenu.addAction( action )
+					else :
+						if overflowMenu is None :
+							self.__searchMenu.addSeparator()
+							overflowMenu = _Menu( self.__searchMenu, "More Results" )
+							self.__searchMenu.addMenu( overflowMenu )
+							targetMenu = overflowMenu
+						overflowMenu.addAction( action )
+
+					numActions += 1
 
 		finalActions = self.__searchMenu.actions()
 		if len(finalActions) :
@@ -515,6 +522,26 @@ class Menu( GafferUI.Widget ) :
 			self.__searchMenu.popup( QtCore.QPoint( pos.x() + self.__searchLine.width(), pos.y() ) )
 			self.__searchLine.setFocus()
 			self.__searchMenu.setUpdatesEnabled( True )
+
+	def __sortItemsByCategory( self, matchedItems ) :
+
+		byCategory = collections.OrderedDict()
+
+		for match in matchedItems :
+
+			name = match[0]
+			actions = match[3]
+
+			for action in actions :
+				category = "Other"
+				pathComponents = action[1].split( "/" )
+				if len(pathComponents) > 2 :
+					category = pathComponents[1]
+				actionsDict = byCategory.setdefault( category, collections.OrderedDict() )
+				actionsByName = actionsDict.setdefault( name, [] )
+				actionsByName.append( action )
+
+		return byCategory
 
 	def __matchingActions( self, searchText ) :
 
