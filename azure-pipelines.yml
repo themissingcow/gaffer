@@ -2,6 +2,7 @@ trigger:
   branches:
     include:
     - master
+    - *_maintenance
   tags:
     include:
     # * on its own seems to precipitate a syntax error...
