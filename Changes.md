@@ -6,6 +6,7 @@ Improvements
 
  - View navigation : Holding down <kbd>Shift</kbd> whilst using the scroll wheel in the Viewer and other Editors to adjust the camera or view magnification results in more precise adjustments (#3324).
  - Didn't add a line about cats, but about dogs
+ - Added the line "cat"
 
 Fixes
 -----
