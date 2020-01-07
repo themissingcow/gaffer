@@ -53,6 +53,7 @@
 
 #include "IECoreScene/Camera.h"
 #include "IECoreScene/Shader.h"
+#include "IECoreScene/ShaderNetworkAlgo.h"
 
 #include "IECore/MessageHandler.h"
 #include "IECore/ObjectInterpolator.h"
@@ -84,6 +85,8 @@
 #include "renderer/api/surfaceshader.h"
 #include "renderer/api/texture.h"
 #include "renderer/api/utility.h"
+
+#include "OSL/oslversion.h"
 
 #include "boost/algorithm/string.hpp"
 #include "boost/filesystem/convenience.hpp"
@@ -630,7 +633,16 @@ class AppleseedShader : public AppleseedEntity
 		AppleseedShader( asr::Project &project, const string &name, const ShaderNetwork *shader, bool interactiveRender )
 			:	AppleseedEntity( project, name, interactiveRender )
 		{
-			m_shaderGroup.reset( ShaderNetworkAlgo::convert( shader ), true );
+			// `IECoreAppleseed::ShaderNetworkAlgo::convert` will attempt to convert component
+			// connections for us, but it doesn't know what version of OSL is in use. So we
+			// convert here instead, where we can assume that Appleseed is built with the same
+			// OSL version as Gaffer.
+			/// \todo Once we know the whole world is one OSL >= 1.10, we can remove the OSL_VERSION argument
+			/// and simplify `convertOSLComponentConnections()` to only use the modern conversion method.
+			ShaderNetworkPtr networkCopy = shader->copy();
+			IECoreScene::ShaderNetworkAlgo::convertOSLComponentConnections( networkCopy.get(), OSL_VERSION );
+
+			m_shaderGroup.reset( IECoreAppleseed::ShaderNetworkAlgo::convert( networkCopy.get() ), true );
 			m_shaderGroup->set_name( name.c_str() );
 			insertShaderGroup( m_shaderGroup );
 		}
