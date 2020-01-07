@@ -1095,8 +1095,8 @@ class ArnoldRenderTest( GafferSceneTest.SceneTestCase ) :
 		swizzle["parameters"]["channels"].setValue( "b" )
 
 		pack = GafferOSL.OSLShader()
-		pack.loadShader( "MaterialX/mx_pack_color" )
-		pack["parameters"]["in1"].setInput( swizzle["out"]["out"] )
+		pack.loadShader( "Conversion/FloatToColor" )
+		pack["parameters"]["r"].setInput( swizzle["out"]["out"] )
 
 		ball = GafferArnold.ArnoldShaderBall()
 		ball["shader"].setInput( pack["out"] )
