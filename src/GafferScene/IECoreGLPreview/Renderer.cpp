@@ -329,7 +329,8 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 			{
 				if( const ObjectVisualiser *visualiser = IECoreGLPreview::ObjectVisualiser::acquire( object->typeId() ) )
 				{
-					m_renderable = visualiser->visualise( object );
+					m_objectVisualisations = visualiser->visualise( object );
+					m_renderable = m_objectVisualisations[ VisualisationType::Geometry ];
 				}
 				else
 				{
@@ -382,17 +383,20 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 			accumulateBoundsIfValid(
 				b, m_transform,
 				m_renderable.get(),
-				visualisation( *m_attributes, VT( VT::InheritLocalScaling | VT::AffectsFramingBound ) )
+				visualisation( *m_attributes, VT( VT::InheritLocalScaling | VT::AffectsFramingBound ) ),
+				m_objectVisualisations[ VT( VT::InheritLocalScaling | VT::AffectsFramingBound ) ].get()
 			);
 
 			accumulateBoundsIfValid(
 				b, m_ornamentTransform,
-				visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::AffectsFramingBound ) )
+				visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::AffectsFramingBound ) ),
+				m_objectVisualisations[ VT( VT::InheritVisualiserScaling | VT::AffectsFramingBound ) ].get()
 			);
 
 			accumulateBoundsIfValid(
 				b, m_combinedTransform,
-				visualisation( *m_attributes, VT( VT::InheritLocalScaling | VT::InheritVisualiserScaling | VT::AffectsFramingBound ) )
+				visualisation( *m_attributes, VT( VT::InheritLocalScaling | VT::InheritVisualiserScaling | VT::AffectsFramingBound ) ),
+				m_objectVisualisations[ VT( VT::InheritLocalScaling | VT::InheritVisualiserScaling | VT::AffectsFramingBound ) ].get()
 			);
 
 			return b;
@@ -423,10 +427,13 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 
 			if( m_attributes->ornamentScale() > 0 )
 			{
+
 				renderIfValid(
 					m_ornamentTransform, currentState,
 					visualisation( *m_attributes, VT::InheritVisualiserScaling ),
-					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::AffectsFramingBound ) )
+					m_objectVisualisations[ VT::InheritVisualiserScaling ].get(),
+					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::AffectsFramingBound ) ),
+					m_objectVisualisations[ VT::InheritVisualiserScaling | VT::AffectsFramingBound ].get()
 				);
 
 				// 2. Visualisations that inherit visualiser scale and local scale.
@@ -434,7 +441,9 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 				renderIfValid(
 					m_combinedTransform, currentState,
 					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::InheritLocalScaling ) ),
-					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::InheritLocalScaling | VT::AffectsFramingBound ) )
+					m_objectVisualisations[ VT( VT::InheritVisualiserScaling | VT::InheritLocalScaling ) ].get(),
+					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::InheritLocalScaling | VT::AffectsFramingBound ) ),
+					m_objectVisualisations[ VT( VT::InheritVisualiserScaling | VT::InheritLocalScaling | VT::AffectsFramingBound ) ].get()
 				);
 			}
 
@@ -443,7 +452,9 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 			renderIfValid(
 				m_transform, currentState,
 				visualisation( *m_attributes, VisualisationType::InheritLocalScaling ),
+				m_objectVisualisations[ VisualisationType::InheritLocalScaling ].get(),
 				visualisation( *m_attributes, VT( VisualisationType::InheritLocalScaling | VT::AffectsFramingBound ) ),
+				m_objectVisualisations[ VT( VisualisationType::InheritLocalScaling | VT::AffectsFramingBound ) ].get(),
 				m_renderable.get()
 			);
 		}
@@ -482,6 +493,7 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 		M44f m_combinedTransform;
 		ConstOpenGLAttributesPtr m_attributes;
 		IECoreGL::ConstRenderablePtr m_renderable;
+		Visualisations m_objectVisualisations;
 		vector<InternedString> m_name;
 		EditQueue &m_editQueue;
 

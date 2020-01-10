@@ -66,12 +66,14 @@ class CameraVisualiser : public ObjectVisualiser
 		{
 		}
 
-		IECoreGL::ConstRenderablePtr visualise( const IECore::Object *object ) const override
+		Visualisations visualise( const IECore::Object *object ) const override
 		{
+			Visualisations v;
+
 			const IECoreScene::Camera *camera = IECore::runTimeCast<const IECoreScene::Camera>( object );
 			if( !camera )
 			{
-				return nullptr;
+				return v;
 			}
 
 			IECoreGL::GroupPtr group = new IECoreGL::Group();
@@ -176,7 +178,10 @@ class CameraVisualiser : public ObjectVisualiser
 			curves->addPrimitiveVariable( "P", IECoreScene::PrimitiveVariable( IECoreScene::PrimitiveVariable::Vertex, pData ) );
 			group->addChild( curves );
 
-			return group;
+			// We want to scale the visualisation with visualiser scale, but
+			// the f.o.v is also affected by any local scale on the camera.
+			v[ VisualisationType::Ornament | VisualisationType::InheritLocalScaling ] = group;
+			return v;
 		}
 
 	protected :
