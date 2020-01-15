@@ -50,12 +50,14 @@ enum VisualisationType
 	Ornament, // Visualisations that don't inherit a location's scale and aren't
 	          // considered for bounds computation if geometry or a Geometric
 	          // visualisation is present.
-	Frustum   // Visualisations that inherit a location's transform and
-	          // represent some in-world projection of frustum of the object.
+	GeometryFrustum, // Visualisations that inherit a location's transform and
+	                 // represent some in-world projection of frustum of the object.
+	OrnamentFrustum  // Visualisations that don't inherit a location's scale and
+	                 // represent some in-world projection of frustum of the object.
 };
 
 // A container for renderables grouped by VisualisationType
-using Visualisations = std::array<IECoreGL::ConstRenderablePtr, 3>;
+using Visualisations = std::array<IECoreGL::ConstRenderablePtr, 4>;
 
 namespace Private
 {

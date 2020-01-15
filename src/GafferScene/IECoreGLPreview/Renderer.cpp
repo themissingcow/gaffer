@@ -399,8 +399,10 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 			{
 				auto objV = m_objectVisualisations[ VisualisationType::Ornament ];
 				auto attrV = visualisation( *m_attributes, VisualisationType::Ornament );
+				auto objFrustumV = m_objectVisualisations[ VisualisationType::OrnamentFrustum ];
+				auto attrFrustumV = visualisation( *m_attributes, VisualisationType::OrnamentFrustum );
 
-				if( objV || attrV )
+				if( objV || attrV || objFrustumV || attrFrustumV )
 				{
 					const bool haveOrnamentTransform = m_ornamentTransform != M44f();
 					if( haveOrnamentTransform )
@@ -416,6 +418,14 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 					if( objV )
 					{
 						objV->render( currentState );
+					}
+					if( attrFrustumV )
+					{
+						attrFrustumV->render( currentState );
+					}
+					if( objFrustumV )
+					{
+						objFrustumV->render( currentState );
 					}
 
 					if( haveOrnamentTransform )
@@ -436,12 +446,12 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 
 			if( m_attributes->drawFrustum() )
 			{
-				if( auto attrV = visualisation( *m_attributes, VisualisationType::Frustum ) )
+				if( auto attrV = visualisation( *m_attributes, VisualisationType::GeometryFrustum ) )
 				{
 					attrV->render( currentState );
 				}
 
-				if( auto objV = m_objectVisualisations[ VisualisationType::Frustum ] )
+				if( auto objV = m_objectVisualisations[ VisualisationType::GeometryFrustum ] )
 				{
 					objV->render( currentState );
 				}

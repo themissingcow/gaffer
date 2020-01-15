@@ -205,7 +205,7 @@ class CameraVisualiser : public ObjectVisualiser
 			// Planes
 			frustumGroup->addChild( frustumVisualisation( projection, screenWindow, cameraPlanes ) );
 
-			v[ VisualisationType::Frustum ] = frustumGroup;
+			v[ VisualisationType::GeometryFrustum ] = frustumGroup;
 			v[ VisualisationType::Ornament ] = ornamentGroup;
 
 			return v;

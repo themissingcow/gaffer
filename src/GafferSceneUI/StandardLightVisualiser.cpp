@@ -406,14 +406,14 @@ Visualisations StandardLightVisualiser::visualise( const IECore::InternedString 
 
 	const Color3f color = parameter<Color3f>( metadataTarget, shaderParameters, "colorParameter", Color3f( 1.0f ) );
 
-	GroupPtr ornaments = new Group;  // Ornaments are affected by visualiser:scale while
-	GroupPtr geometry = new Group;   // geometry isn't as its size matters for rendering.
-	GroupPtr frustum = new Group;    // inherits scaling as per geometry
+	GroupPtr ornaments = new Group;         // Ornaments are affected by visualiser:scale while geometry isn't as
+	GroupPtr geometry = new Group;          // its size matters for rendering. We assume that light projection's
+	GroupPtr ornamentFrustums = new Group;  // aren't scaled with the light.
 
 	Visualisations result;
 	result[ VisualisationType::Geometry ] = geometry;
 	result[ VisualisationType::Ornament ] = ornaments;
-	result[ VisualisationType::Frustum ] = frustum;
+	result[ VisualisationType::OrnamentFrustum ] = ornamentFrustums;
 
 	const FloatData *visualiserScaleData = attributes->member<FloatData>( "gl:visualiser:ornamentScale" );
 	const float visualiserScale = visualiserScaleData ? visualiserScaleData->readable() : 1.0;
@@ -452,7 +452,7 @@ Visualisations StandardLightVisualiser::visualise( const IECore::InternedString 
 		ornaments->addChild( const_pointer_cast<IECoreGL::Renderable>( spotlightCone( innerAngle, outerAngle, lensRadius / visualiserScale, 1.0f, 1.0f ) ) );
 		ornaments->addChild( const_pointer_cast<IECoreGL::Renderable>( ray() ) );
 		ornaments->addChild( const_pointer_cast<IECoreGL::Renderable>( colorIndicator( color ) ) );
-		frustum->addChild( const_pointer_cast<IECoreGL::Renderable>( spotlightCone( innerAngle, outerAngle, lensRadius / visualiserScale, 10.0f * frustumScale, 0.2f ) ) );
+		ornamentFrustums->addChild( const_pointer_cast<IECoreGL::Renderable>( spotlightCone( innerAngle, outerAngle, lensRadius / visualiserScale, 10.0f * frustumScale, 0.2f ) ) );
 	}
 	else if( type && type->readable() == "distant" )
 	{
