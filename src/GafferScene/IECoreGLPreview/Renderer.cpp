@@ -390,45 +390,8 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 
 		void render( IECoreGL::State *currentState, const IECore::PathMatcher &selection ) const
 		{
-			const bool haveTransform = m_transform != M44f();
-			if( haveTransform )
-			{
-				glPushMatrix();
-				glMultMatrixf( m_transform.getValue() );
-			}
-
 			IECoreGL::State::ScopedBinding scope( *m_attributes->state(), *currentState );
 			IECoreGL::State::ScopedBinding selectionScope( selectionState(), *currentState, selected( selection ) );
-
-			if( m_renderable )
-			{
-				m_renderable->render( currentState );
-			}
-
-			// Local space visualisations
-
-			if( auto v = visualisation( *m_attributes, VisualisationType::Geometry ) )
-			{
-				v->render( currentState );
-			}
-
-			if( m_attributes->drawFrustum() )
-			{
-				if( auto objV = m_objectVisualisations[ VisualisationType::Frustum ] )
-				{
-					objV->render( currentState );
-				}
-
-				if( auto attrV = visualisation( *m_attributes, VisualisationType::Frustum ) )
-				{
-					attrV->render( currentState );
-				}
-			}
-
-			if( haveTransform )
-			{
-				glPopMatrix();
-			}
 
 			// Local-scale-free visualisations, that use the attribute driven
 			// visualiserScale for size adjustments.
@@ -446,13 +409,13 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 						glMultMatrixf( m_ornamentTransform.getValue() );
 					}
 
-					if( objV )
-					{
-						objV->render( currentState );
-					}
 					if( attrV )
 					{
 						attrV->render( currentState );
+					}
+					if( objV )
+					{
+						objV->render( currentState );
 					}
 
 					if( haveOrnamentTransform )
@@ -461,6 +424,44 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 					}
 				}
 			}
+
+			const bool haveTransform = m_transform != M44f();
+			if( haveTransform )
+			{
+				glPushMatrix();
+				glMultMatrixf( m_transform.getValue() );
+			}
+
+			// Local space visualisations
+
+			if( m_attributes->drawFrustum() )
+			{
+				if( auto attrV = visualisation( *m_attributes, VisualisationType::Frustum ) )
+				{
+					attrV->render( currentState );
+				}
+
+				if( auto objV = m_objectVisualisations[ VisualisationType::Frustum ] )
+				{
+					objV->render( currentState );
+				}
+			}
+
+			if( auto v = visualisation( *m_attributes, VisualisationType::Geometry ) )
+			{
+				v->render( currentState );
+			}
+
+			if( m_renderable )
+			{
+				m_renderable->render( currentState );
+			}
+
+			if( haveTransform )
+			{
+				glPopMatrix();
+			}
+
 		}
 
 		IECore::TypeId objectType() const
