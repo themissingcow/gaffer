@@ -41,32 +41,29 @@
 
 void IECoreGLPreview::Private::collectVisualisations( const Visualisations &source, Visualisations &target )
 {
-	int t = 0;
-	for( auto &visualisation : source )
+	for( size_t i = 0, end = source.size(); i < end; ++i )
 	{
-		if( !visualisation )
+		if( !source[i] )
 		{
 			continue;
 		}
 
 		IECoreGL::Group *group = nullptr;
 
-		if( target[t] )
+		if( target[i] )
 		{
-			IECoreGL::Renderable *existing = boost::const_pointer_cast<IECoreGL::Renderable>( target[t] ).get();
-			group = dynamic_cast<IECoreGL::Group *>( existing );
+			IECoreGL::Renderable *existing = boost::const_pointer_cast<IECoreGL::Renderable>( target[i] ).get();
+			group = static_cast<IECoreGL::Group *>( existing );
 		}
 		else
 		{
 			group = new IECoreGL::Group;
-			target[t] = group;
+			target[i] = group;
 		}
 
 		assert( group );
 
 		// `const_pointer_cast` ok because group/renderable becomes const on assignment
-		group->addChild( boost::const_pointer_cast<IECoreGL::Renderable>( visualisation ) );
-
-		++t;
+		group->addChild( boost::const_pointer_cast<IECoreGL::Renderable>( source[i] ) );
 	}
 }
