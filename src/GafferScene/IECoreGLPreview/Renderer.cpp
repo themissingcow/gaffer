@@ -92,6 +92,59 @@ using namespace IECoreGLPreview;
 namespace
 {
 
+template<class... Boundable>
+void accumulateBoundsIfValid( Box3f &target, const M44f &matrix, Boundable... args )
+{
+	for( auto r : { args... } )
+	{
+		if( !r ) { continue; }
+
+		const Box3f b = r->bound();
+		// Note: Imath::transform with a non-identify matrix on an empty
+		// box results in a box that returns false to isEmpty.
+		if( !b.isEmpty() )
+		{
+			target.extendBy( Imath::transform( b, matrix ) );
+		}
+	}
+}
+
+template<class... Renderable>
+void renderIfValid( const M44f &matrix, State* state, Renderable... args )
+{
+	bool haveRenderables = false;
+	for( auto r : { args... } )
+	{
+		if( r )
+		{
+			haveRenderables = true;
+			break;
+		}
+	}
+	if( !haveRenderables )
+	{
+		return;
+	}
+
+	const bool haveTransform = matrix != M44f();
+	if( haveTransform )
+	{
+		glPushMatrix();
+		glMultMatrixf( matrix.getValue() );
+	}
+
+	for( auto r : { args... } )
+	{
+		if( !r ) { continue; }
+		r->render( state );
+	}
+
+	if( haveTransform )
+	{
+		glPopMatrix();
+	}
+}
+
 template<typename T>
 T *reportedCast( const IECore::RunTimeTyped *v, const char *type, const IECore::InternedString &name )
 {
@@ -322,39 +375,25 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 
 		Box3f transformedBound() const
 		{
-			// Note: Imath::transform with a non-identify matrix on an empty
-			// box results in a box that returns false to isEmpty, hence the
-			// checks below.
+			using VT = VisualisationType;
+
 			Box3f b;
-			if( m_renderable )
-			{
-				b.extendBy( m_renderable->bound() );
-			}
 
-			if( auto v = visualisation( *m_attributes, VisualisationType::Geometry ) )
-			{
-				b.extendBy( v->bound() );
-			}
+			accumulateBoundsIfValid(
+				b, m_transform,
+				m_renderable.get(),
+				visualisation( *m_attributes, VT( VT::InheritLocalScaling | VT::AffectsFramingBound ) )
+			);
 
-			if( !b.isEmpty() )
-			{
-				b = Imath::transform( b, m_transform );
-			}
-			else
-			{
-				// We only consider ornaments if there is no geometric representation.
-				// As we don't use the bounds for culling, we can get away with this,
-				// and it means sizable visualisations don't mess up the framing when there
-				// is a geometric component.
-				if( auto v = visualisation( *m_attributes, VisualisationType::Ornament ) )
-				{
-					const Box3f ornamentB = v->bound();
-					if( !ornamentB.isEmpty() )
-					{
-						b.extendBy( Imath::transform( ornamentB, m_ornamentTransform ) );
-					}
-				}
-			}
+			accumulateBoundsIfValid(
+				b, m_ornamentTransform,
+				visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::AffectsFramingBound ) )
+			);
+
+			accumulateBoundsIfValid(
+				b, m_combinedTransform,
+				visualisation( *m_attributes, VT( VT::InheritLocalScaling | VT::InheritVisualiserScaling | VT::AffectsFramingBound ) )
+			);
 
 			return b;
 		}
@@ -371,54 +410,42 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 
 		void render( IECoreGL::State *currentState, const IECore::PathMatcher &selection ) const
 		{
-			const bool haveTransform = m_transform != M44f();
-			if( haveTransform )
-			{
-				glPushMatrix();
-				glMultMatrixf( m_transform.getValue() );
-			}
+			using VT = VisualisationType;
 
 			IECoreGL::State::ScopedBinding scope( *m_attributes->state(), *currentState );
 			IECoreGL::State::ScopedBinding selectionScope( selectionState(), *currentState, selected( selection ) );
 
-			if( m_renderable )
-			{
-				m_renderable->render( currentState );
-			}
+			// In order to minimize z-fighting, we draw non-geometric visualisations
+			// first and real geometry last, so that they sit on top. This is
+			// still prone to flicker, but seems to provide the best results.
 
-			// Local space visualisations
+			// 1. Visualisations that inherit visualiser scale only.
 
-			if( auto v = visualisation( *m_attributes, VisualisationType::Geometry ) )
-			{
-				v->render( currentState );
-			}
-
-			if( haveTransform )
-			{
-				glPopMatrix();
-			}
-
-			// Local-scale-free visualisations, that use the attribute driven
-			// visualiserScale for size adjustments.
 			if( m_attributes->ornamentScale() > 0 )
 			{
-				if( auto v = visualisation( *m_attributes, VisualisationType::Ornament ) )
-				{
-					const bool haveOrnamentTransform = m_ornamentTransform != M44f();
-					if( haveOrnamentTransform )
-					{
-						glPushMatrix();
-						glMultMatrixf( m_ornamentTransform.getValue() );
-					}
+				renderIfValid(
+					m_ornamentTransform, currentState,
+					visualisation( *m_attributes, VT::InheritVisualiserScaling ),
+					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::AffectsFramingBound ) )
+				);
 
-					v->render( currentState );
+				// 2. Visualisations that inherit visualiser scale and local scale.
 
-					if( haveOrnamentTransform )
-					{
-						glPopMatrix();
-					}
-				}
+				renderIfValid(
+					m_combinedTransform, currentState,
+					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::InheritLocalScaling ) ),
+					visualisation( *m_attributes, VT( VT::InheritVisualiserScaling | VT::InheritLocalScaling | VT::AffectsFramingBound ) )
+				);
 			}
+
+			// 3. Visualisations that inherit local scale only
+
+			renderIfValid(
+				m_transform, currentState,
+				visualisation( *m_attributes, VisualisationType::InheritLocalScaling ),
+				visualisation( *m_attributes, VT( VisualisationType::InheritLocalScaling | VT::AffectsFramingBound ) ),
+				m_renderable.get()
+			);
 		}
 
 		IECore::TypeId objectType() const
@@ -445,11 +472,14 @@ class OpenGLObject : public IECoreScenePreview::Renderer::ObjectInterface
 			M44f ornamentTransform = sansScalingAndShear( m_transform );
 			ornamentTransform.scale( V3f( m_attributes->ornamentScale() ) );
 			m_ornamentTransform = ornamentTransform;
+			m_combinedTransform = m_transform;
+			m_combinedTransform.scale( V3f( m_attributes->ornamentScale() ) );
 		}
 
 		IECore::TypeId m_objectType;
 		M44f m_transform;
 		M44f m_ornamentTransform;
+		M44f m_combinedTransform;
 		ConstOpenGLAttributesPtr m_attributes;
 		IECoreGL::ConstRenderablePtr m_renderable;
 		vector<InternedString> m_name;

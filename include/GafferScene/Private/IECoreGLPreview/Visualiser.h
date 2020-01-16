@@ -44,16 +44,45 @@
 namespace IECoreGLPreview
 {
 
+// We struggled to come up with names for all the combination of behaviours
+// that visualisations need. We also wanted to keep the relatively straight
+// forward interface that the fixed Visualisations array gives the developer
+// implementing a simple visualiser. The compromise was to structure the
+// array via a bitmask of behaviours, rather than a list of well-known types.
+// We then define additional enum values for well-known combinations of
+// behaviours to simplify common uses.
+//
+// Developers can simply assign to one of the common indices, eg: Geometry,
+// or, build custom combinations of behaviours via bitwise operations if
+// desired.
+
 enum VisualisationType
 {
-	Geometry, // Visualisations that inherit a location's transform.
-	Ornament  // Visualisations that don't inherit a location's scale and aren't
-	          // considered for bounds computation if geometry or a Geometric
-	          // visualisation is present.
+	// Properties
+
+	InheritLocalScaling = 1,
+	// Visualiser scaling can be controlled globally and per-location depending
+	// on scene scale or other factors.
+	InheritVisualiserScaling = 2,
+	// If set, the bound of the visualisation will be considered when 'fit'
+	// framing a location. Visualisation bounds are ignored whenever actual
+	// geometry is present at a location and it's bound is used instead.
+	AffectsFramingBound = 4,
+
+	// Well-known visualisation types
+
+	// Representations of in-world renderable items (eg: VDB).
+	Geometry = InheritLocalScaling | AffectsFramingBound,
+	// Representations of frustums that have world-meaningful scales.
+	Frustum = InheritLocalScaling,
+	// Representations of non-renderable visual aids, such as arrows or colors.
+	Ornament = InheritVisualiserScaling | AffectsFramingBound,
+	// Representations of abstract frustums such as light projections.
+	OrnamentFrustum = InheritVisualiserScaling,
 };
 
-// A container for renderables grouped by VisualisationType
-using Visualisations = std::array<IECoreGL::ConstRenderablePtr, 2>;
+// A container for renderables grouped by VisualisationType bits.
+using Visualisations = std::array<IECoreGL::ConstRenderablePtr, 8>;
 
 namespace Private
 {
