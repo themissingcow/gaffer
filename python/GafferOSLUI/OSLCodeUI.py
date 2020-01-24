@@ -106,6 +106,10 @@ Gaffer.Metadata.registerNode(
 
 		"parameters.*" : [
 
+			# We override the default TitleCase behaviour for OSL parameters as
+			# it greatly confuses users who then have to use the actual plug
+			# name in any code they write.
+			"labelPlugValueWidget:formatter", "GafferUI.NameLabel.verbatimFormatter",
 			"labelPlugValueWidget:renameable", True,
 
 		],
@@ -130,6 +134,10 @@ Gaffer.Metadata.registerNode(
 
 		"out.*" : [
 
+			# We override the default TitleCase behaviour for OSL outputs as
+			# it greatly confuses users who then have to use the actual plug
+			# name in any code they write.
+			"labelPlugValueWidget:formatter", "GafferUI.NameLabel.verbatimFormatter",
 			"labelPlugValueWidget:renameable", True,
 
 		],
