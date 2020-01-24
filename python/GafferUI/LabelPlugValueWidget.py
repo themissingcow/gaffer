@@ -45,6 +45,8 @@ from Qt import QtWidgets
 # Supported plug metadata :
 #
 #  - "labelPlugValueWidget:renameable"
+#  - "labelPlugValueWidget:formatter" - a dynamic metadata entry that returns
+#    the display name for a list of graphComponents
 class LabelPlugValueWidget( GafferUI.PlugValueWidget ) :
 
 	def __init__( self, plug, horizontalAlignment=GafferUI.Label.HorizontalAlignment.Left, verticalAlignment=GafferUI.Label.VerticalAlignment.Center, **kw ) :
@@ -180,7 +182,9 @@ class LabelPlugValueWidget( GafferUI.PlugValueWidget ) :
 		if label is not None :
 			self.__label.setFormatter( lambda graphComponents : label )
 		else :
-			self.__label.setFormatter( self.__label.defaultFormatter )
+			formatterStr = Gaffer.Metadata.value( plug, "labelPlugValueWidget:formatter" )
+			formatter = self.__import( formatterStr ) if formatterStr else self.__label.defaultFormatter
+			self.__label.setFormatter( formatter )
 
 	def __updateDoubleClickConnection( self ) :
 
@@ -236,3 +240,12 @@ class LabelPlugValueWidget( GafferUI.PlugValueWidget ) :
 
 		if key=="label" and Gaffer.MetadataAlgo.affectedByChange( self.getPlug(), nodeTypeId, plugPath, plug ) :
 			self.__updateFormatter()
+
+	def __import( self, path ) :
+
+		path = path.split( "." )
+		result = __import__( path[0] )
+		for n in path[1:] :
+			result = getattr( result, n )
+
+		return result

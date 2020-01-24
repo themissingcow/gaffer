@@ -119,6 +119,11 @@ class NameLabel( GafferUI.Label ) :
 
 		return ".".join( IECore.CamelCase.toSpaced( g.getName() ) for g in graphComponents )
 
+	@staticmethod
+	def verbatimFormatter( graphComponents ) :
+
+		return ".".join( g.getName() for g in graphComponents )
+
 	def __setupConnections( self, reuseUntil=None ) :
 
 		if self.__graphComponent is None :
