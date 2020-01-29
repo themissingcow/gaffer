@@ -91,6 +91,7 @@ class OpenImageIOReaderTest( GafferImageTest.ImageTestCase ) :
 		self.assertEqual( n["out"]["format"].getValue().getDisplayWindow(), imath.Box2i( imath.V2i( 0 ), imath.V2i( 200, 150 ) ) )
 
 		expectedMetadata = IECore.CompoundData( {
+			"oiio:subimages" : IECore.IntData( 1 ),
 			"oiio:ColorSpace" : IECore.StringData( 'Linear' ),
 			"compression" : IECore.StringData( 'zips' ),
 			"PixelAspectRatio" : IECore.FloatData( 1 ),
@@ -99,6 +100,7 @@ class OpenImageIOReaderTest( GafferImageTest.ImageTestCase ) :
 			"fileFormat" : IECore.StringData( "openexr" ),
 			"dataType" : IECore.StringData( "float" ),
 		} )
+
 		self.assertEqual( n["out"]["metadata"].getValue(), expectedMetadata )
 
 		channelNames = n["out"]["channelNames"].getValue()
