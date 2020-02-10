@@ -39,6 +39,7 @@
 
 #include "TweaksBinding.h"
 
+#include "GafferScene/AttributeTweaks.h"
 #include "GafferScene/ShaderTweaks.h"
 #include "GafferScene/CameraTweaks.h"
 #include "GafferScene/TweakPlug.h"
@@ -109,6 +110,7 @@ class TweakPlugSerialiser : public ValuePlugSerialiser
 
 void GafferSceneModule::bindTweaks()
 {
+	DependencyNodeClass<AttributeTweaks>();
 	DependencyNodeClass<ShaderTweaks>();
 	DependencyNodeClass<CameraTweaks>();
 
