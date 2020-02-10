@@ -962,6 +962,12 @@ class DiffRow( Row ) :
 						"command" : functools.partial( Gaffer.WeakMethod( self.__showShader ), [ target ] )
 					}
 				)
+				m.append(
+					"/Create Nodes for Shader" + labelSuffix,
+					{
+						"command" : functools.partial( Gaffer.WeakMethod( self.__createShaderNodes ), self.__inspector( target ) )
+					}
+				)
 
 		if len( targetsAreShaders ) == 2 and all( targetsAreShaders ) :
 			m.append(
@@ -1005,6 +1011,29 @@ class DiffRow( Row ) :
 
 		self.ancestor( GafferUI.Window ).addChildWindow( w, removeOnClose = True )
 		w.setVisible( True )
+
+	def __createShaderNodes( self, target ) :
+
+		scope = GafferUI.EditMenu.scope( self )
+		shader = GafferScene.ShaderAlgo.CreateNodesForNetwork( target, scope.parent )
+
+		if not shader :
+			return
+
+		allNodes = [ shader ]
+
+		scope.script.selection().clear()
+		scope.script.selection().add( shader )
+
+		def addToSelection( node ) :
+			scope.script.selection().add( node )
+			allNodes.append( node )
+			return True
+
+		Gaffer.NodeAlgo.visitUpstream( shader, addToSelection )
+
+		if scope.graphEditor :
+			scope.graphEditor.frame( allNodes )
 
 ##########################################################################
 # DiffColumn

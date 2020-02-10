@@ -44,4 +44,6 @@ from _GafferScene import *
 
 from ShaderBall import ShaderBall
 
+import ShaderAlgo
+
 __import__( "IECore" ).loadConfig( "GAFFER_STARTUP_PATHS", subdirectory = "GafferScene" )

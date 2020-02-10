@@ -60,4 +60,15 @@ finally :
 from ArnoldShaderBall import ArnoldShaderBall
 from ArnoldTextureBake import ArnoldTextureBake
 
+def __createArnoldShader( shaderName, nodeType ) :
+	s = nodeType()
+	s.loadShader( shaderName )
+	return s
+
+import GafferScene
+GafferScene.ShaderAlgo.RegisterShaderNodeCreator( "ai:shader", lambda s : __createArnoldShader( s, ArnoldShader ) )
+GafferScene.ShaderAlgo.RegisterShaderNodeCreator( "ai:surface", lambda s : __createArnoldShader( s, ArnoldShader ) )
+GafferScene.ShaderAlgo.RegisterShaderNodeCreator( "ai:light", lambda s : __createArnoldShader( s, ArnoldLight ) )
+GafferScene.ShaderAlgo.RegisterShaderNodeCreator( "ai:lightFilter", lambda s : __createArnoldShader( s, ArnoldLightFilter ) )
+
 __import__( "IECore" ).loadConfig( "GAFFER_STARTUP_PATHS", subdirectory = "GafferArnold" )

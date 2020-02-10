@@ -38,4 +38,14 @@ __import__( "GafferScene" )
 
 from _GafferOSL import *
 
+def __createOSLShader( shaderName, nodeType ) :
+	s = nodeType()
+	s.loadShader( shaderName )
+	return s
+
+import GafferScene
+GafferScene.ShaderAlgo.RegisterShaderNodeCreator( "osl:shader", lambda s: __createOSLShader( s, OSLShader ) )
+GafferScene.ShaderAlgo.RegisterShaderNodeCreator( "osl:surface", lambda s: __createOSLShader( s, OSLShader ) )
+GafferScene.ShaderAlgo.RegisterShaderNodeCreator( "osl:light", lambda s: __createOSLShader( s, OSLLight ) )
+
 __import__( "IECore" ).loadConfig( "GAFFER_STARTUP_PATHS", subdirectory = "GafferOSL" )
