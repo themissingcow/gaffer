@@ -49,7 +49,6 @@ from ScaleToolTest import ScaleToolTest
 from RotateToolTest import RotateToolTest
 from ContextAlgoTest import ContextAlgoTest
 from CameraToolTest import CameraToolTest
-from VisualiserTest import VisualiserTest
 from RendererTest import RendererTest
 
 if __name__ == "__main__":
