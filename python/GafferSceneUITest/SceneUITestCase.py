@@ -66,7 +66,7 @@ class SceneUITestCase( GafferUITest.TestCase ) :
 		script["_Instancer"] = GafferScene.Instancer()
 		script["_PathFilter"] = GafferScene.PathFilter()
 		script["_Instancer"]["in"].setInput( script["_Plane"]["out"] )
-		script["_Instancer"]["prototypes"].setInput( prototypeScenePlug )
+		script["_Instancer"]["instances"].setInput( prototypeScenePlug )
 		script["_Instancer"]["filter"].setInput( script["_PathFilter"]["out"] )
 		script["_Plane"]["dimensions"].setValue( imath.V2f( dimension ) )
 		script["_Plane"]["divisions"].setValue( imath.V2i( divisions ) )
