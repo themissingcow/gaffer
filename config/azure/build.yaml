@@ -29,6 +29,8 @@ jobs:
    steps:
 
    - script: |
+       system_profiler SPDisplaysDataType &&
+       defaults read /Library/Preferences/com.apple.windowserver.plist &&
        brew update &&
        brew install doxygen &&
        brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/bb50e09187595c6a0ef68761e1c6457d8f7b2461/Formula/scons.rb &&
