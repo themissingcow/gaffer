@@ -54,7 +54,7 @@ class PresetsPlugValueWidget( GafferUI.PlugValueWidget ) :
 
 		GafferUI.PlugValueWidget.__init__( self, cont, plugs, **kw )
 
-		self.__menuButton = GafferUI.MenuButton( "", menu = GafferUI.Menu( Gaffer.WeakMethod( self.__menuDefinition ) ) )
+		self.__menuButton = GafferUI.MenuButton( "", menu = GafferUI.Menu( Gaffer.WeakMethod( self._presetsMenuDefinition ) ) )
 		cont.addChild( self.__menuButton )
 
 		self.__customValuePlugWidget = GafferUI.PlugValueWidget.create( plugs, useTypeOnly=True )
@@ -92,7 +92,7 @@ class PresetsPlugValueWidget( GafferUI.PlugValueWidget ) :
 		else :
 			self.__menuButton.setText( "Invalid" )
 
-	def __menuDefinition( self ) :
+	def _presetsMenuDefinition( self ) :
 
 		result = IECore.MenuDefinition()
 		if not self.getPlugs() :
