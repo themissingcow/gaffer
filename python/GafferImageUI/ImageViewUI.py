@@ -45,6 +45,59 @@ import GafferUI
 import GafferImage
 import GafferImageUI
 
+class DisplayTransformPlugValueWidget( GafferUI.PresetsPlugValueWidget ) :
+
+	def __init__( self, plug, **kw ) :
+
+		self.__gpuPlug = plug.parent()["displayTransformGPU"]
+
+		self.__plugDirtiedConnection = self.__gpuPlug.node().plugDirtiedSignal().connect( lambda p : Gaffer.WeakMethod( self._updateFromPlug )() )
+		GafferUI.PresetsPlugValueWidget.__init__( self, plug, **kw )
+
+	def _presetsMenuDefinition( self ) :
+		result = GafferUI.PresetsPlugValueWidget._presetsMenuDefinition( self )
+		result.append( "/OptionsDivider", { "divider" : True, "label" : "Options" } )
+		
+		## \todo : This should use a different checkbox icon to distinguish a toggle from selecting presets
+		## ( graphics/toggle(On/Off).png feels kinda nice ).  This corresponds to the exclusive/non-exclusive
+		## distinction made by Qt, but we don't want to muck about with creating action groups.  Tom's proposal
+		## is to instead just use icons on the menu items to show the checkboxes, rather than telling Qt that the
+		## menu item is a checkbox.  Going to leave that up to him
+		result.append( "GPU",
+			{
+				"command" : Gaffer.WeakMethod( self.__toggleGpu ),
+				"checkBox" : self.__gpuPlug.getValue(),
+				"shortCut" : "Alt+G",
+			}
+		)
+		return result
+
+	def __toggleGpu( self, v ) :
+		self.__gpuPlug.setValue( not self.__gpuPlug.getValue() )
+
+	## \todo : Duplicating this code is very ugly.  Need a better way to override the menu
+	##         button text
+	def _updateFromPlug( self ) :
+
+		self._PresetsPlugValueWidget__menuButton.setEnabled( self._editable() )
+
+		text = ""
+		if self.getPlug() is not None :
+			with self.getContext() :
+				presetName = Gaffer.NodeAlgo.currentPreset( self.getPlug() )
+
+			text = presetName or "Invalid"
+
+		if self.__gpuPlug.getValue():
+			text += " (GPU)"
+		else:
+			text += " (slow)"
+
+		self._PresetsPlugValueWidget__menuButton.setText( text )
+		self._PresetsPlugValueWidget__customValuePlugWidget.setVisible( False )
+
+
+
 ##########################################################################
 # Metadata registration.
 ##########################################################################
@@ -120,13 +173,17 @@ Gaffer.Metadata.registerNode(
 			Applies colour space transformations for viewing the image correctly.
 			""",
 
-			"plugValueWidget:type", "GafferUI.PresetsPlugValueWidget",
+			"plugValueWidget:type", "GafferImageUI.ImageViewUI.DisplayTransformPlugValueWidget",
 			"label", "",
 			"toolbarLayout:width", 100,
 
 			"presetNames", lambda plug : IECore.StringVectorData( GafferImageUI.ImageView.registeredDisplayTransforms() ),
 			"presetValues", lambda plug : IECore.StringVectorData( GafferImageUI.ImageView.registeredDisplayTransforms() ),
 
+		],
+
+		"displayTransformGPU" : [
+			"plugValueWidget:type", ""
 		],
 
 		"colorInspector" : [
