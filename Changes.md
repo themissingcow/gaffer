@@ -5,6 +5,7 @@ Features
 --------
 
 - InteractiveRender : Added message log to the node's UI, displaying output from the last render (#3419).
+- ImageView : Support OCIO display transform and gamma/exposure on GPU for improved performance
 
 Improvements
 ------------
