@@ -55,14 +55,14 @@
 #include "IECore/VectorTypedData.h"
 #include "IECoreGL/Shader.h"
 
+#include "OpenColorIO/OpenColorIO.h"
+
 #include "tbb/concurrent_unordered_map.h"
 #include "tbb/spin_mutex.h"
 
 #include <array>
 
 #include <chrono>
-
-#include "OpenColorIO/OpenColorIO.h"
 
 namespace IECoreGL
 {
@@ -102,7 +102,7 @@ class GAFFERIMAGEUI_API ImageGadget : public GafferUI::Gadget
 		Imath::Box3f bound() const override;
 
 		void setImage( GafferImage::ImagePlugPtr image );
-		GafferImage::ImagePlug *getImage() const;
+		const GafferImage::ImagePlug *getImage() const;
 
 		void setContext( Gaffer::ContextPtr context );
 		Gaffer::Context *getContext();
@@ -126,19 +126,19 @@ class GAFFERIMAGEUI_API ImageGadget : public GafferUI::Gadget
 		int getSoloChannel() const;
 
 		void setClipping( bool clipping );
-		bool getClipping();
+		bool getClipping() const;
 
 		void setExposure( float exposure );
-		float getExposure();
+		float getExposure() const;
 
 		void setGamma( float gamma );
-		float getGamma();
+		float getGamma() const;
 
 		void setDisplayTransform( GafferImage::ImageProcessorPtr displayTransform );
-		GafferImage::ImageProcessorPtr getDisplayTransform();
+		GafferImage::ConstImageProcessorPtr getDisplayTransform() const;
 
-		void setGPU( bool gpu );
-		bool getGPU();
+		void setUseGPU( bool useGPU );
+		bool getUseGPU() const;
 
 		void setLabelsVisible( bool visible );
 		bool getLabelsVisible() const;
@@ -194,14 +194,13 @@ class GAFFERIMAGEUI_API ImageGadget : public GafferUI::Gadget
 		OpenColorIO::ConstTransformRcPtr m_gpuOcioTransform;
 
 		IECoreGL::Shader *shader( bool dirty, const OpenColorIO::ConstTransformRcPtr& transform, GLuint &lut3d_textureID ) const;
-		GLuint m_lut3dTextureID;
+		mutable GLuint m_lut3dTextureID;
 		mutable IECoreGL::ShaderPtr m_shader;
-		mutable std::vector<float> m_lut3d;
 
 		mutable bool m_shaderDirty;
 
 
-		bool m_gpu;
+		bool m_useGPU;
 		bool m_labelsVisible;
 		bool m_paused;
 		ImageGadgetSignal m_stateChangedSignal;

@@ -55,11 +55,12 @@
 #include "IECoreGL/Shader.h"
 #include "IECoreGL/ShaderLoader.h"
 
+#include "OpenColorIO/OpenColorIO.h"
+
 #include "boost/algorithm/string/predicate.hpp"
 #include "boost/bind.hpp"
 #include "boost/lexical_cast.hpp"
 
-#include "OpenColorIO/OpenColorIO.h"
 
 using namespace std;
 using namespace boost;
@@ -82,7 +83,7 @@ ImageGadget::ImageGadget()
 		m_clipping( false ),
 		m_exposure( 0.0f ),
 		m_gamma( 1.0f ),
-		m_gpu( true ),
+		m_useGPU( true ),
 		m_labelsVisible( true ),
 		m_paused( false ),
 		m_dirtyFlags( AllDirty ),
@@ -113,7 +114,7 @@ ImageGadget::ImageGadget()
 	m_gradeNode->inPlug()->setInput( m_clampNode->outPlug() );
 	m_gradeNode->channelsPlug()->setValue( "*" );
 
-	glGenTextures( 1, &m_lut3dTextureID );
+	m_lut3dTextureID = 0;
 }
 
 ImageGadget::~ImageGadget()
@@ -121,6 +122,11 @@ ImageGadget::~ImageGadget()
 	// Make sure background task completes before anything
 	// it relies on is destroyed.
 	m_tilesTask.reset();
+
+	if( m_lut3dTextureID != 0 )
+	{
+		glDeleteTextures( 1, &m_lut3dTextureID );
+	}
 }
 
 void ImageGadget::setImage( GafferImage::ImagePlugPtr image )
@@ -149,7 +155,7 @@ void ImageGadget::setImage( GafferImage::ImagePlugPtr image )
 	dirty( AllDirty );
 }
 
-GafferImage::ImagePlug *ImageGadget::getImage() const
+const GafferImage::ImagePlug *ImageGadget::getImage() const
 {
 	return m_image.get();
 }
@@ -241,7 +247,7 @@ void ImageGadget::setClipping( bool clipping )
 	}
 }
 
-bool ImageGadget::getClipping()
+bool ImageGadget::getClipping() const
 {
 	return m_clipping;
 }
@@ -259,7 +265,7 @@ void ImageGadget::setExposure( float exposure )
 	}
 }
 
-float ImageGadget::getExposure()
+float ImageGadget::getExposure() const
 {
 	return m_exposure;
 }
@@ -278,7 +284,7 @@ void ImageGadget::setGamma( float gamma )
 	}
 }
 
-float ImageGadget::getGamma()
+float ImageGadget::getGamma() const
 {
 	return m_gamma;
 }
@@ -288,7 +294,7 @@ void ImageGadget::setDisplayTransform( ImageProcessorPtr displayTransform )
 	m_displayTransform = displayTransform;
 
 	OpenColorIOTransformPtr ocioTransformNode = IECore::runTimeCast< OpenColorIOTransform >( m_displayTransform );
-	if( m_gpu && ocioTransformNode )
+	if( m_useGPU && ocioTransformNode )
 	{
 		m_gpuOcioTransform = ocioTransformNode->transform();
 	}
@@ -307,20 +313,20 @@ void ImageGadget::setDisplayTransform( ImageProcessorPtr displayTransform )
 	requestRender();
 }
 
-ImageProcessorPtr ImageGadget::getDisplayTransform()
+ConstImageProcessorPtr ImageGadget::getDisplayTransform() const
 {
 	return m_displayTransform;
 }
 
-void ImageGadget::setGPU( bool gpu )
+void ImageGadget::setUseGPU( bool useGPU )
 {
-	m_gpu = gpu;
+	m_useGPU = useGPU;
 	setDisplayTransform( m_displayTransform );
 }
 
-bool ImageGadget::getGPU()
+bool ImageGadget::getUseGPU() const
 {
-	return m_gpu;
+	return m_useGPU;
 }
 
 void ImageGadget::setLabelsVisible( bool visible )
@@ -879,10 +885,15 @@ void ImageGadget::visibilityChanged()
 IECoreGL::Shader *ImageGadget::shader( bool dirty, const OpenColorIO::ConstTransformRcPtr& transform, GLuint &lut3dTextureID ) const
 {
 	const int LUT3D_EDGE_SIZE = 128;
+	if( m_lut3dTextureID == 0)
+	{
+		glGenTextures( 1, &m_lut3dTextureID );
+	}
 
 	if( !m_shader || dirty )
 	{
 		std::string colorTransformCode;
+		std::vector<float> lut3d;
 		if( transform )
 		{
 			OpenColorIO::ConstConfigRcPtr config = OpenColorIO::GetCurrentConfig();
@@ -895,8 +906,8 @@ IECoreGL::Shader *ImageGadget::shader( bool dirty, const OpenColorIO::ConstTrans
 			shaderDesc.setLut3DEdgeLen( LUT3D_EDGE_SIZE );
 
 			int num3Dentries = 3*LUT3D_EDGE_SIZE*LUT3D_EDGE_SIZE*LUT3D_EDGE_SIZE;
-			m_lut3d.resize( num3Dentries );
-			processor->getGpuLut3D( &m_lut3d[0], shaderDesc );
+			lut3d.resize( num3Dentries );
+			processor->getGpuLut3D( &lut3d[0], shaderDesc );
 			colorTransformCode =  processor->getGpuShaderText( shaderDesc );
 		}
 		else
@@ -922,7 +933,7 @@ IECoreGL::Shader *ImageGadget::shader( bool dirty, const OpenColorIO::ConstTrans
 			glBindTexture( GL_TEXTURE_3D, m_lut3dTextureID );
 			glTexImage3D(
 				GL_TEXTURE_3D, 0, GL_RGB16F, LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE,
-				0, GL_RGB, GL_FLOAT, &m_lut3d[0]
+				0, GL_RGB, GL_FLOAT, &lut3d[0]
 			);
 		}
 	}
