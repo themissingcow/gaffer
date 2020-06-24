@@ -75,6 +75,7 @@ API
     - PresetsPlugValueWidget
 - SetAlgo : Added Python binding for `affectsSetExpression()`.
 - Shader : Added `affectsAttributes()` protected method.
+- ImageGadget : Now contains display parameters, and has accessors for setting clipping, exposure, gamma, displayTransform, useGPU
 
 Breaking Changes
 ----------------
