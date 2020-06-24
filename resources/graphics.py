@@ -163,6 +163,8 @@
 		'warningSmall',
 		'searchFocusOff',
 		'searchFocusOn',
-		'scrollToBottom'
+		'scrollToBottom',
+		'lutCPU',
+		'lutGPU'
 	]
 }
