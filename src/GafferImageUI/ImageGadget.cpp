@@ -114,8 +114,6 @@ ImageGadget::ImageGadget()
 	m_gradeNode->channelsPlug()->setValue( "*" );
 
 	glGenTextures( 1, &m_lut3dTextureID );
-
-	m_displayTransform = new GafferImage::ImageProcessor();
 }
 
 ImageGadget::~ImageGadget()
@@ -294,9 +292,13 @@ void ImageGadget::setDisplayTransform( ImageProcessorPtr displayTransform )
 	{
 		m_gpuOcioTransform = ocioTransformNode->transform();
 	}
-	else
+	else if( displayTransform )
 	{
 		m_displayTransform->inPlug()->setInput( m_gradeNode->outPlug() );
+		m_gpuOcioTransform.reset();
+	}
+	else
+	{
 		m_gpuOcioTransform.reset();
 	}
 
@@ -659,7 +661,7 @@ void ImageGadget::updateTiles()
 	removeOutOfBoundsTiles();
 
 	ImagePlug* tilesImage;
-	if( m_gpuOcioTransform )
+	if( m_gpuOcioTransform || !m_displayTransform )
 	{
 		tilesImage = m_deepStateNode->outPlug();
 	}
@@ -977,7 +979,7 @@ void ImageGadget::renderTiles() const
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	}
 
-	if( m_gpuOcioTransform )
+	if( m_gpuOcioTransform || !m_displayTransform )
 	{
 		glUniform1f( shader->uniformParameter( "multiply" )->location, pow( 2.0f, m_exposure ) );
 		glUniform1f( shader->uniformParameter( "power" )->location, m_gamma > 0.0 ? 1.0f / m_gamma : 1.0f );
