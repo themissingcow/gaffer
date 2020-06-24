@@ -525,7 +525,7 @@ void ImageView::plugSet( Gaffer::Plug *plug )
 	}
 	else if( plug == displayTransformGPUPlug() )
 	{
-		m_imageGadget->setGPU( displayTransformGPUPlug()->getValue() );
+		m_imageGadget->setUseGPU( displayTransformGPUPlug()->getValue() );
 	}
 }
 
