@@ -51,7 +51,7 @@ class DisplayTransformPlugValueWidget( GafferUI.PresetsPlugValueWidget ) :
 
 		self.__gpuPlug = plug.parent()["displayTransformGPU"]
 
-		self.__plugDirtiedConnection = self.__gpuPlug.node().plugDirtiedSignal().connect( lambda p : Gaffer.WeakMethod( self._updateFromPlug )() )
+		self.__gpuPlug.node().plugDirtiedSignal().connect( Gaffer.WeakMethod( self.__plugDirtied ), scoped = False )
 		GafferUI.PresetsPlugValueWidget.__init__( self, plug, **kw )
 
 	def _presetsMenuDefinition( self ) :
@@ -72,29 +72,27 @@ class DisplayTransformPlugValueWidget( GafferUI.PresetsPlugValueWidget ) :
 		)
 		return result
 
+	def __plugDirtied( self, plug ) :
+
+		if plug == self.__gpuPlug :
+			self._updateFromPlugs()
+
+
 	def __toggleGpu( self, v ) :
 		self.__gpuPlug.setValue( not self.__gpuPlug.getValue() )
 
-	## \todo : Duplicating this code is very ugly.  Need a better way to override the menu
-	##         button text
-	def _updateFromPlug( self ) :
-
-		self._PresetsPlugValueWidget__menuButton.setEnabled( self._editable() )
-
-		text = ""
-		if self.getPlug() is not None :
-			with self.getContext() :
-				presetName = Gaffer.NodeAlgo.currentPreset( self.getPlug() )
-
-			text = presetName or "Invalid"
+	def _updateFromPlugs( self ) :
+		GafferUI.PresetsPlugValueWidget._updateFromPlugs( self )
 
 		if self.__gpuPlug.getValue():
-			text += " (GPU)"
+			suffix = " (GPU)"
 		else:
-			text += " (slow)"
+			suffix = " (CPU)"
+		
+		menuButton = self._PresetsPlugValueWidget__menuButton
+		menuButton.setText( menuButton.getText() + suffix )
 
-		self._PresetsPlugValueWidget__menuButton.setText( text )
-		self._PresetsPlugValueWidget__customValuePlugWidget.setVisible( False )
+
 
 
 
