@@ -37,6 +37,8 @@
 import unittest
 import imath
 
+import IECore
+
 import Gaffer
 import GafferUI
 import GafferUITest
@@ -95,7 +97,14 @@ class ImageGadgetTest( GafferUITest.TestCase ) :
 
 		w.setVisible( True )
 
-		self.waitForIdle( 1000 )
+		# If this computer doesn't support floating point textures, the ImageGadget will warn about
+		# this the first time it tries to render.  Don't fail because of this
+		with IECore.CapturingMessageHandler() as mh :
+			self.waitForIdle( 1000 )
+
+		if len( mh.messages ):
+			for m in mh.messages:
+				print( "IGNORING MESSAGE: " + m.context + " : " + m.message )
 
 		del g, w
 		del s
