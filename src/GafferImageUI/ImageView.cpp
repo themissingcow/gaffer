@@ -557,10 +557,6 @@ bool ImageView::keyPress( const GafferUI::KeyEvent &event )
 	{
 		m_imageGadget->setPaused( true );
 	}
-	else if( event.key == "G" && event.modifiers == ModifiableEvent::Modifiers::Alt )
-	{
-		displayTransformGPUPlug()->setValue( !displayTransformGPUPlug()->getValue() );
-	}
 
 	return false;
 }

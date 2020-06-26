@@ -45,57 +45,6 @@ import GafferUI
 import GafferImage
 import GafferImageUI
 
-class DisplayTransformPlugValueWidget( GafferUI.PresetsPlugValueWidget ) :
-
-	def __init__( self, plug, **kw ) :
-
-		self.__gpuPlug = plug.parent()["displayTransformGPU"]
-
-		self.__gpuPlug.node().plugDirtiedSignal().connect( Gaffer.WeakMethod( self.__plugDirtied ), scoped = False )
-		GafferUI.PresetsPlugValueWidget.__init__( self, plug, **kw )
-
-	def _presetsMenuDefinition( self ) :
-		result = GafferUI.PresetsPlugValueWidget._presetsMenuDefinition( self )
-		result.append( "/OptionsDivider", { "divider" : True, "label" : "Options" } )
-		
-		## \todo : This should use a different checkbox icon to distinguish a toggle from selecting presets
-		## ( graphics/toggle(On/Off).png feels kinda nice ).  This corresponds to the exclusive/non-exclusive
-		## distinction made by Qt, but we don't want to muck about with creating action groups.  Tom's proposal
-		## is to instead just use icons on the menu items to show the checkboxes, rather than telling Qt that the
-		## menu item is a checkbox.  Going to leave that up to him
-		result.append( "GPU",
-			{
-				"command" : Gaffer.WeakMethod( self.__toggleGpu ),
-				"checkBox" : self.__gpuPlug.getValue(),
-				"shortCut" : "Alt+G",
-			}
-		)
-		return result
-
-	def __plugDirtied( self, plug ) :
-
-		if plug == self.__gpuPlug :
-			self._updateFromPlugs()
-
-
-	def __toggleGpu( self, v ) :
-		self.__gpuPlug.setValue( not self.__gpuPlug.getValue() )
-
-	def _updateFromPlugs( self ) :
-		GafferUI.PresetsPlugValueWidget._updateFromPlugs( self )
-
-		if self.__gpuPlug.getValue():
-			suffix = " (GPU)"
-		else:
-			suffix = " (CPU)"
-		
-		menuButton = self._PresetsPlugValueWidget__menuButton
-		menuButton.setText( menuButton.getText() + suffix )
-
-
-
-
-
 ##########################################################################
 # Metadata registration.
 ##########################################################################
@@ -164,6 +113,17 @@ Gaffer.Metadata.registerNode(
 
 		],
 
+		"displayTransformGPU" : [
+			"description",
+			"""
+			Applies a gamma correction to the image.
+			""",
+
+			"plugValueWidget:type", "GafferImageUI.ImageViewUI._LutGPUPlugValueWidget",
+			"toolbarLayout:index", 5,
+			"label", "",
+		],
+
 		"displayTransform" : [
 
 			"description",
@@ -171,17 +131,13 @@ Gaffer.Metadata.registerNode(
 			Applies colour space transformations for viewing the image correctly.
 			""",
 
-			"plugValueWidget:type", "GafferImageUI.ImageViewUI.DisplayTransformPlugValueWidget",
+			"plugValueWidget:type", "GafferUI.PresetsPlugValueWidget",
 			"label", "",
 			"toolbarLayout:width", 100,
 
 			"presetNames", lambda plug : IECore.StringVectorData( GafferImageUI.ImageView.registeredDisplayTransforms() ),
 			"presetValues", lambda plug : IECore.StringVectorData( GafferImageUI.ImageView.registeredDisplayTransforms() ),
 
-		],
-
-		"displayTransformGPU" : [
-			"plugValueWidget:type", ""
 		],
 
 		"colorInspector" : [
@@ -510,6 +466,57 @@ class _SoloChannelPlugValueWidget( GafferUI.PlugValueWidget ) :
 				{
 					"command" : functools.partial( Gaffer.WeakMethod( self.__setValue ), value ),
 					"checkBox" : soloChannel == value
+				}
+			)
+
+		return m
+
+	def __setValue( self, value, *unused ) :
+
+		self.getPlug().setValue( value )
+
+##########################################################################
+# _LutGPUPlugValueWidget
+##########################################################################
+
+class _LutGPUPlugValueWidget( GafferUI.PlugValueWidget ) :
+
+	def __init__( self, plug, **kw ) :
+
+		self.__button = GafferUI.MenuButton(
+			image = "lutGPU.png",
+			hasFrame = False,
+			menu = GafferUI.Menu(
+				Gaffer.WeakMethod( self.__menuDefinition ),
+				title = "DisplayTransform Mode",
+			)
+		)
+
+		GafferUI.PlugValueWidget.__init__( self, self.__button, plug, **kw )
+
+		self._updateFromPlug()
+
+	def _updateFromPlug( self ) :
+
+		with Gaffer.Context() :
+
+			self.__button.setImage( "lutGPU.png" if self.getPlug().getValue() else "lutCPU.png" )
+
+	def __menuDefinition( self ) :
+
+		with self.getContext() :
+			lutGPU = self.getPlug().getValue()
+
+		m = IECore.MenuDefinition()
+		for name, value in [
+			( "GPU (fast)", True ),
+			( "CPU (accurate)", False )
+		] :
+			m.append(
+				"/" + name,
+				{
+					"command" : functools.partial( Gaffer.WeakMethod( self.__setValue ), value ),
+					"checkBox" : lutGPU == value
 				}
 			)
 
