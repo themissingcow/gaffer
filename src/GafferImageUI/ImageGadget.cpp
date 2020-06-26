@@ -48,6 +48,8 @@
 #include "Gaffer/Node.h"
 #include "Gaffer/ScriptNode.h"
 
+#include "IECore/MessageHandler.h"
+
 #include "IECoreGL/GL.h"
 #include "IECoreGL/IECoreGL.h"
 #include "IECoreGL/LuminanceTexture.h"
@@ -71,6 +73,37 @@ using namespace Gaffer;
 using namespace GafferUI;
 using namespace GafferImage;
 using namespace GafferImageUI;
+
+namespace {
+void findUsableTextureFormats( GLenum &monochromeFormat, GLenum &colorFormat )
+{
+	static bool g_textureFormatsInitialized = false;
+	static GLenum g_monochromeFormat = GL_RED;
+	static GLenum g_colorFormat = GL_RGB;
+
+	if( !g_textureFormatsInitialized )
+	{
+		std::string extensions( (char*)glGetString( GL_EXTENSIONS ) );
+		if( extensions.find( "GL_ARB_texture_float" ) != string::npos )
+		{
+			g_monochromeFormat = GL_INTENSITY16F_ARB;
+			g_colorFormat = GL_RGB16F_ARB;
+		}
+		else
+		{
+			IECore::msg( IECore::Msg::Warning, "ImageGadget",
+				"Could not find supported floating point texture format in OpenGL.  GPU image"
+				" viewer path will be low quality, recommend switching to CPU display transform,"
+				" or resolving graphics driver issue."
+			);
+		}
+		g_textureFormatsInitialized = true;
+	}
+	
+	monochromeFormat = g_monochromeFormat;
+	colorFormat = g_colorFormat;
+}
+}
 
 //////////////////////////////////////////////////////////////////////////
 // ImageGadget implementation
@@ -528,6 +561,9 @@ IECoreGL::Texture *blackTexture()
 	static IECoreGL::TexturePtr g_texture;
 	if( !g_texture )
 	{
+		GLenum monochromeTextureFormat, colorTextureFormat;
+		findUsableTextureFormats( monochromeTextureFormat, colorTextureFormat );
+
 		GLuint texture;
 		glGenTextures( 1, &texture );
 		g_texture = new Texture( texture );
@@ -535,7 +571,7 @@ IECoreGL::Texture *blackTexture()
 
 		const float black = 0;
 		glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-		glTexImage2D( GL_TEXTURE_2D, 0, GL_R16F, /* width = */ 1, /* height = */ 1, 0, GL_RED,
+		glTexImage2D( GL_TEXTURE_2D, 0, monochromeTextureFormat, /* width = */ 1, /* height = */ 1, 0, GL_RED,
 			GL_FLOAT, &black );
 	}
 	return g_texture.get();
@@ -613,6 +649,9 @@ const IECoreGL::Texture *ImageGadget::Tile::texture( bool &active )
 
 	if( channelDataToConvert )
 	{
+		GLenum monochromeTextureFormat, colorTextureFormat;
+		findUsableTextureFormats( monochromeTextureFormat, colorTextureFormat );
+
 		GLuint texture;
 		glGenTextures( 1, &texture );
 		m_texture = new Texture( texture ); // Lock not needed, because this is only touched on the UI thread.
@@ -620,7 +659,7 @@ const IECoreGL::Texture *ImageGadget::Tile::texture( bool &active )
 
 		glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
 		glTexImage2D(
-			GL_TEXTURE_2D, 0, GL_R16F, ImagePlug::tileSize(), ImagePlug::tileSize(), 0, GL_RED,
+			GL_TEXTURE_2D, 0, monochromeTextureFormat, ImagePlug::tileSize(), ImagePlug::tileSize(), 0, GL_RED,
 			GL_FLOAT, channelDataToConvert->readable().data()
 		);
 
@@ -928,11 +967,14 @@ IECoreGL::Shader *ImageGadget::shader( bool dirty, const OpenColorIO::ConstTrans
 
 		if( transform && m_shader->uniformParameter( "lutTexture" ) )
 		{
+			GLenum monochromeTextureFormat, colorTextureFormat;
+			findUsableTextureFormats( monochromeTextureFormat, colorTextureFormat );
+
 			// Load the data into an OpenGL 3D Texture
 			glActiveTexture( GL_TEXTURE0 + m_shader->uniformParameter( "lutTexture" )->textureUnit );
 			glBindTexture( GL_TEXTURE_3D, m_lut3dTextureID );
 			glTexImage3D(
-				GL_TEXTURE_3D, 0, GL_RGB16F, LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE,
+				GL_TEXTURE_3D, 0, colorTextureFormat, LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE,
 				0, GL_RGB, GL_FLOAT, &lut3d[0]
 			);
 		}
