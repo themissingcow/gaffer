@@ -488,7 +488,7 @@ class _LutGPUPlugValueWidget( GafferUI.PlugValueWidget ) :
 			hasFrame = False,
 			menu = GafferUI.Menu(
 				Gaffer.WeakMethod( self.__menuDefinition ),
-				title = "DisplayTransform Mode",
+				title = "LUT Mode",
 			)
 		)
 
