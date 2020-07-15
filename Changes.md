@@ -76,6 +76,7 @@ API
 - SetAlgo : Added Python binding for `affectsSetExpression()`.
 - Shader : Added `affectsAttributes()` protected method.
 - ImageGadget : Now contains display parameters, and has accessors for setting clipping, exposure, gamma, displayTransform, useGPU
+- PlugLayout : Added support for "layout:dividerBefore" metadata - this inserts a divider before the widget instead of after (Note: this has no effect if used in conjunction with "accessory" metadata).
 
 Breaking Changes
 ----------------

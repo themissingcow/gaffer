@@ -308,6 +308,10 @@ class PlugLayout( GafferUI.Widget ) :
 					row.append( widget )
 					section.widgets[-1] = row
 			else :
+				if self.__itemMetadataValue( item, "dividerBefore" ) :
+					section.widgets.append( GafferUI.Divider(
+						GafferUI.Divider.Orientation.Horizontal if self.__layout.orientation() == GafferUI.ListContainer.Orientation.Vertical else GafferUI.Divider.Orientation.Vertical
+					) )
 				section.widgets.append( widget )
 
 			if self.__itemMetadataValue( item, "divider" ) :
