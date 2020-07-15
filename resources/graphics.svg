@@ -21,16 +21,12 @@
   <defs
      id="defs4">
     <linearGradient
-       inkscape:collect="always"
-       id="linearGradient2641">
+       id="linearGradient1731"
+       osb:paint="solid">
       <stop
-         style="stop-color:#787878;stop-opacity:1;"
+         style="stop-color:#cfcfcf;stop-opacity:1;"
          offset="0"
-         id="stop2637" />
-      <stop
-         style="stop-color:#787878;stop-opacity:0;"
-         offset="1"
-         id="stop2639" />
+         id="stop1728" />
     </linearGradient>
     <linearGradient
        id="linearGradient1697"
@@ -932,80 +928,14 @@
        y2="67.362183" />
     <linearGradient
        inkscape:collect="always"
-       xlink:href="#linearGradient2641"
-       id="linearGradient2643"
-       x1="188.37563"
-       y1="192.04348"
-       x2="202.7477"
-       y2="192.04348"
-       gradientUnits="userSpaceOnUse" />
-    <meshgradient
-       inkscape:collect="always"
-       id="meshgradient2663"
+       xlink:href="#foreground"
+       id="linearGradient1733"
+       x1="228.00011"
+       y1="219.36218"
+       x2="237.99989"
+       y2="219.36218"
        gradientUnits="userSpaceOnUse"
-       x="188.79666"
-       y="184.26257">
-      <meshrow
-         id="meshrow2677">
-        <meshpatch
-           id="meshpatch2679">
-          <stop
-             path="c 4.50999,0  8.8421,-0.0171762  13.53,0"
-             style="stop-color:#ffffff;stop-opacity:1"
-             id="stop2681" />
-          <stop
-             path="c 0,5.18725  0,10.3745  0,15.5618"
-             style="stop-color:#658b65;stop-opacity:1"
-             id="stop2683" />
-          <stop
-             path="c -4.50999,0  -9.01998,0  -13.53,0"
-             style="stop-color:#8a9bcf;stop-opacity:1"
-             id="stop2685" />
-          <stop
-             path="c 0,-5.18725  0,-10.3745  0,-15.5618"
-             style="stop-color:#9f6351;stop-opacity:1"
-             id="stop2687" />
-        </meshpatch>
-      </meshrow>
-    </meshgradient>
-    <meshgradient
-       inkscape:collect="always"
-       id="meshgradient2831"
-       gradientUnits="userSpaceOnUse"
-       x="188.79666"
-       y="184.26257">
-      <meshrow
-         id="meshrow2843">
-        <meshpatch
-           id="meshpatch2841">
-          <stop
-             id="stop2833"
-             style="stop-color:#ffffff;stop-opacity:1"
-             path="c 4.50999,0  8.8421,-0.0171762  13.53,0" />
-          <stop
-             id="stop2835"
-             style="stop-color:#658b65;stop-opacity:1"
-             path="c 0,5.18725  0,10.3745  0,15.5618" />
-          <stop
-             id="stop2837"
-             style="stop-color:#8a9bcf;stop-opacity:1"
-             path="c -4.50999,0  -9.01998,0  -13.53,0" />
-          <stop
-             id="stop2839"
-             style="stop-color:#9f6351;stop-opacity:1"
-             path="c 0,-5.18725  0,-10.3745  0,-15.5618" />
-        </meshpatch>
-      </meshrow>
-    </meshgradient>
-    <linearGradient
-       inkscape:collect="always"
-       xlink:href="#linearGradient2641"
-       id="linearGradient2845"
-       gradientUnits="userSpaceOnUse"
-       x1="188.37563"
-       y1="192.04348"
-       x2="202.7477"
-       y2="192.04348" />
+       gradientTransform="translate(6,3.0000001e-6)" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -1076,6 +1006,22 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(0,-52.362183)">
+    <rect
+       inkscape:label="#rect1735"
+       y="210.86218"
+       x="234"
+       height="16.5"
+       width="10"
+       id="lutGPU"
+       style="opacity:1;fill:none;fill-opacity:1;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:1.10173225;stroke-opacity:1;paint-order:stroke fill markers" />
+    <rect
+       style="opacity:1;fill:none;fill-opacity:1;stroke:none;stroke-width:3.99999976;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:1.10173225;stroke-opacity:1;paint-order:stroke fill markers"
+       id="lutCPU"
+       width="10"
+       height="16"
+       x="215"
+       y="211.36218"
+       inkscape:label="#rect1735" />
     <circle
        r="11"
        cy="179.86218"
@@ -6062,67 +6008,17 @@
          sodipodi:open="true"
          d="m -68.5,62.362183 a 1.5,1.5 0 0 1 -1.499627,1.5 1.5,1.5 0 0 1 -1.500373,-1.499254 1.5,1.5 0 0 1 1.498881,-1.500746 1.5,1.5 0 0 1 1.501118,1.498507" />
     </g>
-    <g
-       inkscape:label="#g4093"
-       id="g2620"
-       transform="translate(25,26)">
-      <path
-         sodipodi:nodetypes="ccc"
-         inkscape:connector-curvature="0"
-         id="lutCPU"
-         d="m 185.5,182.36218 7e-5,19.5 H 205"
-         style="fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#3c3c3c;stroke-width:1;stroke-linejoin:round;stroke-opacity:1"
-         inkscape:label="#path2612" />
-      <g
-         id="g2618"
-         transform="matrix(-1,0,0,1,390.53978,0.04492906)"
-         inkscape:label="#g2618">
-        <g
-           style="fill:url(#linearGradient2643);fill-opacity:1;stroke:#424242;stroke-width:0.84210503;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-           transform="matrix(1.1875,0,0,1.1875007,-37.15625,-35.474284)"
-           id="g2616">
-          <path
-             sodipodi:nodetypes="ccscc"
-             inkscape:connector-curvature="0"
-             id="path2614"
-             d="m 199.74403,199.82434 -10.94737,-4.63158 c 7.57894,-11.78947 10.88346,-11.85337 12.63158,-10.10526 0.8421,0.84211 2.10526,9.68421 -1.68424,14.73684 z"
-             style="fill:url(#meshgradient2663);fill-opacity:1;fill-rule:evenodd;stroke:#3c3c3c;stroke-width:0.84210503;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
-        </g>
-      </g>
-      <path
-         style="fill:#adadad;fill-opacity:1;stroke:#3c3c3c;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-         d="m 191,197.86218 9,-4 -6,-6 z"
-         id="path2623"
-         inkscape:connector-curvature="0"
-         sodipodi:nodetypes="cccc" />
-      <path
-         style="fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#3c3c3c;stroke-width:1;stroke-linejoin:round;stroke-opacity:1"
-         d="m 209.5,182.36218 0.0669,19.49999 19.43307,1e-5"
-         id="lutGPU"
-         inkscape:connector-curvature="0"
-         sodipodi:nodetypes="ccc"
-         inkscape:label="#path2821" />
-      <g
-         transform="matrix(-1,0,0,1,414.60664,0.04492322)"
-         id="g2827">
-        <g
-           id="g2825"
-           transform="matrix(1.1875,0,0,1.1875007,-37.15625,-35.474284)"
-           style="fill:url(#linearGradient2845);fill-opacity:1;stroke:#424242;stroke-width:0.84210503;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">
-          <path
-             style="fill:url(#meshgradient2831);fill-opacity:1;fill-rule:evenodd;stroke:#3c3c3c;stroke-width:0.84210503;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-             d="m 199.74403,199.82434 -10.94737,-4.63158 c 7.57894,-11.78947 10.88346,-11.85337 12.63158,-10.10526 0.8421,0.84211 2.10526,9.68421 -1.68424,14.73684 z"
-             id="path2823"
-             inkscape:connector-curvature="0"
-             sodipodi:nodetypes="ccscc" />
-        </g>
-      </g>
-      <path
-         style="fill:#cfcfcf;fill-opacity:1;stroke:#3c3c3c;stroke-width:2;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
-         d="m 220,188.86218 -5.23127,5.68757 2.20066,4e-5 -1.61941,4.55001 L 220,193.41223 h -1.74376 z"
-         id="path2635"
-         inkscape:connector-curvature="0"
-         sodipodi:nodetypes="ccccccc" />
-    </g>
+    <path
+       sodipodi:nodetypes="ccccccc"
+       inkscape:connector-curvature="0"
+       id="path2635"
+       d="m 221,212.36218 -5,9 4,-1 -1,6 5,-9 -4,1 z"
+       style="fill:#9e9e9e;fill-opacity:1;stroke:#3c3c3c;stroke-width:2;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers" />
+    <path
+       style="fill:url(#linearGradient1733);fill-opacity:1;stroke:#3c3c3c;stroke-width:2;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       d="m 240,212.36218 -5,9 4,-1 -1,6 5,-9 -4,1 z"
+       id="path1726"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="ccccccc" />
   </g>
 </svg>
