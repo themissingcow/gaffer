@@ -113,17 +113,6 @@ Gaffer.Metadata.registerNode(
 
 		],
 
-		"displayTransformGPU" : [
-			"description",
-			"""
-			Applies a gamma correction to the image.
-			""",
-
-			"plugValueWidget:type", "GafferImageUI.ImageViewUI._LutGPUPlugValueWidget",
-			"toolbarLayout:index", 5,
-			"label", "",
-		],
-
 		"displayTransform" : [
 
 			"description",
@@ -139,6 +128,17 @@ Gaffer.Metadata.registerNode(
 			"presetValues", lambda plug : IECore.StringVectorData( GafferImageUI.ImageView.registeredDisplayTransforms() ),
 
 		],
+
+		"displayTransformGPU" : [
+			"description",
+			"""
+			Applies a gamma correction to the image.
+			""",
+
+			"plugValueWidget:type", "GafferImageUI.ImageViewUI._LutGPUPlugValueWidget",
+			"label", "",
+		],
+
 
 		"colorInspector" : [
 
