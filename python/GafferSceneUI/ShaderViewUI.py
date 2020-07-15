@@ -57,6 +57,7 @@ Gaffer.Metadata.registerNode(
 			""",
 			"plugValueWidget:type", "GafferSceneUI.ShaderViewUI._ScenePlugValueWidget",
 
+			"toolbarLayout:dividerBefore", True,
 		],
 
 	}
