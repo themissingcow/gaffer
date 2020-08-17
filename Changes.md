@@ -5,6 +5,7 @@ Improvements
 ------------
 
 - GraphEditor : Improved performance slightly for large graphs.
+- UI : Added support for basic math operators (`+`, `-`, `/`, `*`) in numeric text fields when setting a new value.
 
 API
 ---

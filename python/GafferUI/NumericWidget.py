@@ -36,6 +36,7 @@
 ##########################################################################
 
 import math
+import re
 
 import IECore
 
@@ -75,7 +76,14 @@ class NumericWidget( GafferUI.TextWidget ) :
 
 	def getValue( self ) :
 
-		return self.__numericType( self.getText() )
+		value = self.getText()
+
+		# Allow derived classes to modify the validator if required
+		validator = self._qtWidget().validator()
+		if isinstance( validator, BasicNumericMathExpression ) :
+			value = validator.eval( value )
+
+		return self.__numericType( value )
 
 	## A signal emitted whenever the value has been changed and the user would expect
 	# to see that change reflected in whatever the field controls. Slots should have
@@ -275,13 +283,13 @@ class NumericWidget( GafferUI.TextWidget ) :
 			self.__numericType = numericType
 
 			if self.__numericType is int :
-				validator = QtGui.QIntValidator( self._qtWidget() )
+				validator = QtGui.QIntValidator()
 			else :
-				validator = QtGui.QDoubleValidator( self._qtWidget() )
+				validator = QtGui.QDoubleValidator()
 				validator.setDecimals( 4 )
 				validator.setNotation( QtGui.QDoubleValidator.StandardNotation )
 
-			self._qtWidget().setValidator( validator )
+			self._qtWidget().setValidator( BasicNumericMathExpression( self._qtWidget(), validator ) )
 
 		# update our textual value
 		text = self.__valueToString( value )
@@ -304,3 +312,70 @@ class NumericWidget( GafferUI.TextWidget ) :
 			return
 
 		signal( self, reason )
+
+# A basic validator/evaluator that supports simple maths
+# operators [+-/*] along with standard number validation, eg:
+#   2 + 3
+#   4.4 / 2
+class BasicNumericMathExpression( QtGui.QValidator ) :
+
+	__invalid = re.compile( r"[^0-9\.+\-*/\s]" )
+	__operators = re.compile( r"[+\-/*]" )
+	__whitespace = re.compile( r"\s+" )
+
+	def __init__( self, parent, typeValidator ) :
+
+		QtGui.QValidator.__init__( self, parent )
+
+		self.__typeValidator = typeValidator
+		self.__typeValidator.setParent( self )
+
+	def validate( self, text, pos ) :
+
+		if not self.__isExpression( text ) :
+			return self.__typeValidator.validate( text, pos )
+
+		# Invalid chars
+		if re.search( self.__invalid, text ) is not None :
+			return QtGui.QValidator.Invalid, text, pos
+
+		# Remove whitespace to simplify tokenisation
+		text = re.sub( self.__whitespace, "", text )
+
+		# Ends with an operator
+		if re.match( self.__operators, text[ -1 ] ) :
+			return QtGui.QValidator.Intermediate, text, pos
+
+		# Individual numbers invalid for our type validator
+		for number in re.split( self.__operators, text ) :
+			# May be seen with *-1, etc...
+			if number == '' :
+				continue
+			state = self.__typeValidator.validate( number, len(number)-1 )
+			if state[0] != QtGui.QValidator.Acceptable :
+				return state[0], text, pos
+
+		# Some other syntax error
+		try :
+			self.eval( text )
+		except SyntaxError :
+			return QtGui.QValidator.Invalid, text, pos
+
+		return QtGui.QValidator.Acceptable, text, pos
+
+	def eval( self, text ) :
+
+		if not self.__isExpression( text ) :
+			return text
+
+		# Ensure the string '1/2' produces 0.5
+		if not isinstance( self.__typeValidator, QtGui.QIntValidator ) :
+			if "/" in text and "." not in text :
+				text = text + ".0"
+
+		return eval( text )
+
+	def __isExpression( self, text ) :
+
+		text = text.strip()
+		return re.search( self.__operators, text[1:] if text.startswith("-") else text ) is not None
