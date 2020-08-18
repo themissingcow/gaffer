@@ -103,6 +103,8 @@ class NumericWidgetTest( GafferUITest.TestCase ) :
 			( " 2*3", 6, int ),
 			( "-2 * 3.1", -6.2, float ),
 			( " -2 *3.1 ", -6.2, float ),
+			( "3%2", 1, int ),
+			( "3.3 % 3", 3.3 % 3, float )
 		) :
 			w = GafferUI.NumericWidget( type_( 0 ) )
 			w._qtWidget().setText( text )

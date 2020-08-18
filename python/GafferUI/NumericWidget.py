@@ -319,8 +319,8 @@ class NumericWidget( GafferUI.TextWidget ) :
 #   4.4 / 2
 class BasicNumericMathExpression( QtGui.QValidator ) :
 
-	__invalid = re.compile( r"[^0-9\.+\-*/\s]" )
-	__operators = re.compile( r"[+\-/*]" )
+	__invalid = re.compile( r"[^0-9\.+\-*%/\s]" )
+	__operators = re.compile( r"[+\-/*%]" )
 	__whitespace = re.compile( r"\s+" )
 
 	def __init__( self, parent, typeValidator ) :
