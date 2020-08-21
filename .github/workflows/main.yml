@@ -151,11 +151,22 @@ jobs:
       run: |
        scons -j 2 package ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT= BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }} INSTALL_DIR=${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}
 
+    - name: Validate
+      run: |
+        ./config/validateRelease.py --archive ${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}.tar.gz
+
     - uses: actions/upload-artifact@v2
       with:
         name: ${{ env.GAFFER_BUILD_NAME }}
         path: ${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}.tar.gz
-      if: ${{ matrix.publish }}
+      if: matrix.publish
+
+    - name: Publish Release
+      run: |
+        ./.github/workflows/main/publishRelease.py --archive ${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}.tar.gz --repo ${{ github.repository }} --releaseId ${{ env.GAFFER_GITHUB_RELEASEID }}
+      if: matrix.publish && env.GAFFER_GITHUB_RELEASEID != ''
+      env:
+        GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Limit cache size
       # GitHub has a limit of 5G for all caches in a repository. Because we write new
