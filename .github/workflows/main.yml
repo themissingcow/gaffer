@@ -153,7 +153,9 @@ jobs:
 
     - name: Validate
       run: |
+        echo "::add-matcher::./.github/workflows/main/problemMatchers/validateRelease.json"
         ./config/validateRelease.py --archive ${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}.tar.gz
+        echo "::remove-matcher owner=validateRelease::"
 
     - uses: actions/upload-artifact@v2
       with:
