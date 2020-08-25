@@ -146,6 +146,12 @@ jobs:
       run: |
        scons -j 2 build ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT= BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }}
 
+    - name: Test
+      run: |
+        echo "::add-matcher::./.github/workflows/main/problemMatchers/unittest.json"
+        ${{ matrix.testRunner }} "${{ env.GAFFER_BUILD_DIR }}/bin/gaffer test"
+        echo "::remove-matcher owner=unittest::"
+
     - name: Build Docs and Package
       timeout-minutes: 20
       run: |

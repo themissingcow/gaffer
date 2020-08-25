@@ -1,0 +1,14 @@
+{
+	"problemMatcher": [
+		{
+			"owner": "unittest",
+			"severity": "error",
+			"pattern": [
+				{
+					"regexp": "^(.*)\\s+\\.\\.\\.\\s+FAIL$",
+					"message": 1
+				}
+			]
+		}
+	]
+}
