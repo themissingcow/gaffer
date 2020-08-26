@@ -9,6 +9,9 @@ on:
     branches:
       - master
       - '*_maintenance'
+  release:
+    types:
+      - published
 
 jobs:
 
