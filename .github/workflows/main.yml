@@ -131,7 +131,9 @@ jobs:
       # below.
       run: |
         python .github/workflows/main/installDependencies.py --archiveURL ${{ matrix.dependenciesURL }} --dependenciesDir ${{ env.GAFFER_BUILD_DIR }} --outputFormat "::set-env name=GAFFER_DEPENDENCIES_HASH::{archiveDigest}"
+        ./config/installArnold.sh
         ./config/installDelight.sh
+        echo ::set-env name=ARNOLD::$GITHUB_WORKSPACE/arnoldRoot
         echo ::set-env name=DELIGHT::$GITHUB_WORKSPACE/3delight
 
     - name: Cache
@@ -144,7 +146,7 @@ jobs:
 
     - name: Build Gaffer
       run: |
-       scons -j 2 build ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT= BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }}
+       scons -j 2 build ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT=${{ env.ARNOLD }} BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }}
 
     - name: Test
       run: |
@@ -155,7 +157,7 @@ jobs:
     - name: Build Docs and Package
       timeout-minutes: 20
       run: |
-       scons -j 2 package ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT= BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }} INSTALL_DIR=${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}
+       scons -j 2 package ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT=${{ env.ARNOLD }} BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }} INSTALL_DIR=${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}
 
     - name: Validate
       run: |

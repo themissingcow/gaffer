@@ -15,21 +15,21 @@ fi
 # syntax that just sets them empty if they're not set in the pipeline, despite
 # what the docs say).
 
-if [ -z "${ARNOLD_LOGIN}" ] || [ "${ARNOLD_LOGIN:0:1}" == "$" ] ; then
-	echo "Error: ARNOLD_LOGIN not set, unable to install Arnold"
-	exit 1
-fi
+login=""
 
-if [ -z "${ARNOLD_PASSWORD}" ] || [ "${ARNOLD_PASSWORD:0:1}" == "$" ] ; then
-	echo "Error: ARNOLD_PASSWORD not set, unable to install Arnold"
-	exit 1
+if [ ! -z "${ARNOLD_LOGIN}" ] && [ "${ARNOLD_LOGIN:0:1}" != "$" ] && [ -z "${ARNOLD_PASSWORD}" ] && [ "${ARNOLD_PASSWORD:0:1}" != "$" ]; then
+	login="${ARNOLD_LOGIN}:${ARNOLD_PASSWORD}@"
 fi
 
 mkdir -p arnoldRoot && cd arnoldRoot
 
 url=downloads.solidangle.com/arnold/Arnold-${arnoldVersion}-${arnoldPlatform}.tgz
 
+# Test for SA
+
+curl -L https://downloads.solidangle.com/arnold/thisisnotarealfile.exe
+
 echo Downloading Arnold "https://${url}"
 
-curl https://${ARNOLD_LOGIN}:${ARNOLD_PASSWORD}@${url} > Arnold-${arnoldVersion}-${arnoldPlatform}.tgz
+curl -L https://${login}${url} -o Arnold-${arnoldVersion}-${arnoldPlatform}.tgz
 tar -xzf Arnold-${arnoldVersion}-${arnoldPlatform}.tgz
