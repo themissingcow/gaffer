@@ -164,6 +164,7 @@ jobs:
         echo "::add-matcher::./.github/workflows/main/problemMatchers/validateRelease.json"
         ./config/validateRelease.py --archive ${{ env.GAFFER_BUILD_NAME }}.tar.gz
         echo "::remove-matcher owner=validateRelease::"
+      if: false
 
     - uses: actions/upload-artifact@v2
       with:
