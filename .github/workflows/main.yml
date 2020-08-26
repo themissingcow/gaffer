@@ -90,7 +90,6 @@ jobs:
       ARNOLD_LICENSE_ORDER: none # Don't waste time looking for a license that doesn't exist
       GAFFER_CACHE_DIR: "./sconsCache"
       GAFFER_BUILD_DIR: "./build"
-      GAFFER_INSTALL_DIR: "./install"
 
     steps:
 
@@ -162,18 +161,18 @@ jobs:
     - name: Validate
       run: |
         echo "::add-matcher::./.github/workflows/main/problemMatchers/validateRelease.json"
-        ./config/validateRelease.py --archive ${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}.tar.gz
+        ./config/validateRelease.py --archive ${{ env.GAFFER_BUILD_NAME }}.tar.gz
         echo "::remove-matcher owner=validateRelease::"
 
     - uses: actions/upload-artifact@v2
       with:
         name: ${{ env.GAFFER_BUILD_NAME }}
-        path: ${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}.tar.gz
+        path: ${{ env.GAFFER_BUILD_NAME }}.tar.gz
       if: matrix.publish
 
     - name: Publish Release
       run: |
-        ./.github/workflows/main/publishRelease.py --archive ${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}.tar.gz --repo ${{ github.repository }} --releaseId ${{ env.GAFFER_GITHUB_RELEASEID }}
+        ./.github/workflows/main/publishRelease.py --archive ${{ env.GAFFER_BUILD_NAME }}.tar.gz --repo ${{ github.repository }} --releaseId ${{ env.GAFFER_GITHUB_RELEASEID }}
       if: matrix.publish && env.GAFFER_GITHUB_RELEASEID != ''
       env:
         GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
