@@ -83,7 +83,9 @@ if os.environ.get( "GITHUB_EVENT_NAME" ) == "pull_request" :
 
 ## Source Tag
 
-tag = buildBranch.replace( "refs/tags/", "" ) if "/tags/" in buildBranch else ""
+tag = ""
+if "/tags" in os.environ["GITHUB_REF"] :
+	tag = os.environ["GITHUB_REF"].replace( "refs/tags/", "" )
 
 ## Pull Request number
 
