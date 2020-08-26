@@ -45,4 +45,6 @@ BUILD_CACHEDIR = os.environ["GAFFER_CACHE_DIR"]
 DELIGHT_ROOT = os.environ["DELIGHT"]
 
 BUILD_DIR = os.environ["GAFFER_BUILD_DIR"]
-INSTALL_DIR = os.environ["GAFFER_BUILD_NAME"]
+INSTALL_DIR = os.path.join( "install", os.environ["GAFFER_BUILD_NAME"] )
+
+PACKAGE_FILE = "%s.tar.gz" % os.environ["GAFFER_BUILD_NAME"]
