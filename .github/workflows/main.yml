@@ -88,9 +88,9 @@ jobs:
     env:
       DISPLAY: ":99.0"
       ARNOLD_LICENSE_ORDER: none # Don't waste time looking for a license that doesn't exist
+      GAFFER_CACHE_DIR: "./sconsCache"
       GAFFER_BUILD_DIR: "./build"
       GAFFER_INSTALL_DIR: "./install"
-      GAFFER_CACHE_DIR: "./sconsCache"
 
     steps:
 
@@ -146,7 +146,7 @@ jobs:
 
     - name: Build Gaffer
       run: |
-       scons -j 2 build ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT=${{ env.ARNOLD }} BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }}
+       scons -j 2 build BUILD_TYPE=${{ matrix.buildType }} OPTIONS=.github/workflows/main/sconsOptions
 
     - name: Test
       run: |
@@ -157,7 +157,7 @@ jobs:
     - name: Build Docs and Package
       timeout-minutes: 20
       run: |
-       scons -j 2 package ENV_VARS_TO_IMPORT=PATH BUILD_TYPE=${{ matrix.buildType }} DELIGHT_ROOT=${{ env.DELIGHT }} ARNOLD_ROOT=${{ env.ARNOLD }} BUILD_DIR=${{ env.GAFFER_BUILD_DIR }} BUILD_CACHEDIR=${{ env.GAFFER_CACHE_DIR }} INSTALL_DIR=${{ env.GAFFER_INSTALL_DIR }}/${{ env.GAFFER_BUILD_NAME }}
+       scons -j 2 package BUILD_TYPE=${{ matrix.buildType }} OPTIONS=.github/workflows/main/sconsOptions
 
     - name: Validate
       run: |
