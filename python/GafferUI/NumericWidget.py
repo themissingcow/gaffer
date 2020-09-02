@@ -388,4 +388,5 @@ class BasicNumericMathExpression( QtGui.QValidator ) :
 				if "/" in text and "." not in text :
 					text = text + ".0"
 
-		return eval( text )
+		# str keeps consistency with non-expression calls
+		return str( eval( text ) )
