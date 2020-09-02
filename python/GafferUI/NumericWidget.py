@@ -78,12 +78,10 @@ class NumericWidget( GafferUI.TextWidget ) :
 
 	def getValue( self ) :
 
-		value = self.getText()
-
-		# Allow derived classes to modify the validator if required
-		validator = self._qtWidget().validator()
-		if isinstance( validator, BasicNumericMathExpression ) :
-			value = validator.eval( value )
+		# Expand any expression the user may have entered into the widget.
+		# The validator's fixup method will attempt to make sense of any
+		# incomplete expressions.
+		value = self._qtWidget().validator().evalExpression( self.getText() )
 
 		return self.__numericType( value )
 
@@ -319,6 +317,8 @@ class NumericWidget( GafferUI.TextWidget ) :
 # operators [+-/*] along with standard number validation, eg:
 #   2 + 3
 #   4.4 / 2
+# Qt will call validate/fixup as part of the edit cycle, but
+# we must call evalExpression ourselves.
 class BasicNumericMathExpression( QtGui.QValidator ) :
 
 	__expression = re.compile( r"^\s*?(-?[0-9\.]+)\s*?([-+*/%])\s*?(-?[0-9\.]+)?\s*$" )
@@ -373,7 +373,9 @@ class BasicNumericMathExpression( QtGui.QValidator ) :
 
 		return QtGui.QValidator.Acceptable, text, pos
 
-	def eval( self, text ) :
+	# A custom method to evaluate the supplied text as an expression,
+	# (called from NumericWidget.getValue).
+	def evalExpression( self, text ) :
 
 		if re.match( self.__expression, text ) is None :
 			return text
