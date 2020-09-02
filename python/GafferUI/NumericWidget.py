@@ -269,6 +269,8 @@ class NumericWidget( GafferUI.TextWidget ) :
 		# zeroes in order to achieve consistent editing. Revert
 		# back to our standard form now so we don't leave it in
 		# this state.
+		# getValue also causes any expressions to be evaluated,
+		# so this will update the UI to show the final result.
 		self.setText( self.__valueToString( self.getValue() ) )
 
 		self.__emitValueChanged( self.ValueChangedReason.Edit )
