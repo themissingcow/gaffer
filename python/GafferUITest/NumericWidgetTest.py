@@ -1,4 +1,4 @@
-############################
+##########################################################################
 #
 #  Copyright (c) 2020, Cinesite VFX Ltd. All rights reserved.
 #
@@ -37,6 +37,7 @@
 import unittest
 import weakref
 
+import GafferTest
 import GafferUI
 import GafferUITest
 
@@ -55,27 +56,23 @@ class NumericWidgetTest( GafferUITest.TestCase ) :
 
 	def testValueChangedSignal( self ) :
 
-		self.emissions = []
-		def f( w, r ) :
-			self.emissions.append( r )
-
 		w = GafferUI.NumericWidget( 1 )
-		c = w.valueChangedSignal().connect( f )
+		signals = GafferTest.CapturingSlot( w.valueChangedSignal() )
 
 		w.setValue( 10 )
 		self.assertEqual( w.getValue(), 10 )
 
-		self.assertEqual( self.emissions, [ GafferUI.NumericWidget.ValueChangedReason.SetValue ] )
+		self.assertEqual( [ s[1] for s in signals ], [ GafferUI.NumericWidget.ValueChangedReason.SetValue ] )
 
 	def testType( self ) :
 
 		w = GafferUI.NumericWidget( 1.0 )
-		w._qtWidget().setText( "2" )
+		w.setText( "2" )
 		self.assertEqual( w.getValue(), 2.0 )
 		self.assertIsInstance( w.getValue(), float )
 
 		w = GafferUI.NumericWidget( 1 )
-		w._qtWidget().setText( "2" )
+		w.setText( "2" )
 		self.assertEqual( w.getValue(), 2 )
 		self.assertIsInstance( w.getValue(), int )
 
