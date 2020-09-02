@@ -38,6 +38,8 @@
 import math
 import re
 
+import six
+
 import IECore
 
 import Gaffer
@@ -319,9 +321,7 @@ class NumericWidget( GafferUI.TextWidget ) :
 #   4.4 / 2
 class BasicNumericMathExpression( QtGui.QValidator ) :
 
-	__invalid = re.compile( r"[^0-9\.+\-*%/\s]" )
-	__operators = re.compile( r"[+\-/*%]" )
-	__whitespace = re.compile( r"\s+" )
+	__expression = re.compile( r"^\s*?(-?[0-9\.]+)\s*?([-+*/%])\s*?(-?[0-9\.]+)?\s*$" )
 
 	def __init__( self, parent, typeValidator ) :
 
@@ -330,52 +330,60 @@ class BasicNumericMathExpression( QtGui.QValidator ) :
 		self.__typeValidator = typeValidator
 		self.__typeValidator.setParent( self )
 
+	def fixup( self, text ) :
+
+		match = re.match( self.__expression, text )
+
+		# Fall back on the base numeric validator
+		if match is None :
+			return self.__typeValidator.fixup( text )
+
+		# If we have an incomplete expression, just return the first number
+		if match.group( 3 ) is None :
+			return match.group( 1 )
+
+		return text
+
 	def validate( self, text, pos ) :
 
-		if not self.__isExpression( text ) :
+		# group(1) = first number
+		# group(2) = operator
+		# group(3) = second number (optional)
+		match = re.match( self.__expression, text )
+
+		# Fall back on the base type validator
+		if match is None :
 			return self.__typeValidator.validate( text, pos )
 
-		# Invalid chars
-		if re.search( self.__invalid, text ) is not None :
-			return QtGui.QValidator.Invalid, text, pos
+		# Validate first number
+		number = match.group( 1 )
+		state = self.__typeValidator.validate( number, len(number)-1 )
+		if state[0] != QtGui.QValidator.Acceptable :
+			return state[0], text, pos
 
-		# Remove whitespace to simplify tokenisation
-		text = re.sub( self.__whitespace, "", text )
-
-		# Ends with an operator
-		if re.match( self.__operators, text[ -1 ] ) :
+		# Incomplete expression
+		if match.group( 3 ) is None :
 			return QtGui.QValidator.Intermediate, text, pos
 
-		# Individual numbers invalid for our type validator
-		for number in re.split( self.__operators, text ) :
-			# May be seen with *-1, etc...
-			if number == '' :
-				continue
-			state = self.__typeValidator.validate( number, len(number)-1 )
-			if state[0] != QtGui.QValidator.Acceptable :
-				return state[0], text, pos
-
-		# Some other syntax error
-		try :
-			self.eval( text )
-		except SyntaxError :
-			return QtGui.QValidator.Invalid, text, pos
+		# Validate second number
+		number = match.group( 3 )
+		state = self.__typeValidator.validate( number, len(number)-1 )
+		if state[0] != QtGui.QValidator.Acceptable :
+			return state[0], text, pos
 
 		return QtGui.QValidator.Acceptable, text, pos
 
 	def eval( self, text ) :
 
-		if not self.__isExpression( text ) :
+		if re.match( self.__expression, text ) is None :
 			return text
 
-		# Ensure the string '1/2' produces 0.5
-		if not isinstance( self.__typeValidator, QtGui.QIntValidator ) :
-			if "/" in text and "." not in text :
-				text = text + ".0"
+		if not six.PY3 :
+			# Ensure the string '1/2' produces 0.5. In python 2, a single
+			# `/` produces int/float dependent on the argument types. In 3
+			# it always produces float.
+			if not isinstance( self.__typeValidator, QtGui.QIntValidator ) :
+				if "/" in text and "." not in text :
+					text = text + ".0"
 
 		return eval( text )
-
-	def __isExpression( self, text ) :
-
-		text = text.strip()
-		return re.search( self.__operators, text[1:] if text.startswith("-") else text ) is not None
