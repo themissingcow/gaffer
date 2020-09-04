@@ -81,9 +81,8 @@ class NumericWidget( GafferUI.TextWidget ) :
 		# Expand any expression the user may have entered into the widget.
 		# The validator's fixup method will attempt to make sense of any
 		# incomplete expressions.
-		value = self._qtWidget().validator().evalExpression( self.getText() )
-
-		return self.__numericType( value )
+		validator = self._qtWidget().validator()
+		return validator.evalExpression( self.getText(), self.__numericType )
 
 	## A signal emitted whenever the value has been changed and the user would expect
 	# to see that change reflected in whatever the field controls. Slots should have
@@ -377,18 +376,20 @@ class BasicNumericMathExpression( QtGui.QValidator ) :
 
 	# A custom method to evaluate the supplied text as an expression,
 	# (called from NumericWidget.getValue).
-	def evalExpression( self, text ) :
+	def evalExpression( self, text, outputType ) :
 
-		if re.match( self.__expression, text ) is None :
-			return text
+		value = text
 
-		if not six.PY3 :
-			# Ensure the string '1/2' produces 0.5. In python 2, a single
-			# `/` produces int/float dependent on the argument types. In 3
-			# it always produces float.
-			if not isinstance( self.__typeValidator, QtGui.QIntValidator ) :
-				if "/" in text and "." not in text :
-					text = text + ".0"
+		if re.match( self.__expression, text ) is not None :
 
-		# str keeps consistency with non-expression calls
-		return str( eval( text ) )
+			if not six.PY3 :
+				# Ensure the string '1/2' produces 0.5. In python 2, a single
+				# `/` produces int/float dependent on the argument types. In 3
+				# it always produces float.
+				if not isinstance( self.__typeValidator, QtGui.QIntValidator ) :
+					if "/" in text and "." not in text :
+						text = text + ".0"
+
+			value = eval( text )
+
+		return outputType( value )
