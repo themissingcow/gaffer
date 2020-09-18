@@ -826,6 +826,15 @@ _styleSheet = string.Template(
 		image: url($GAFFER_ROOT/graphics/headerSortUp.png);
 	}
 
+	/* Spreadsheet Header Views */
+
+	QTableView[gafferClass="GafferUI.SpreadsheetUI._PlugTableView"] QHeaderView::section:vertical {
+		padding: 3px;
+		color: $tintDarkerStronger;
+	}
+
+	/* Scroll Bars */
+
 	QScrollBar {
 		border: none;
 		border-radius: 4px;

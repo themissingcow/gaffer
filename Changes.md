@@ -9,6 +9,7 @@ Improvements
 - Node Editor : Added decoration to collapsed sections when any of their children have non-default values.
 - HierarchyView : Added <kbd>Ctrl + C</kbd> shortcut/context menu action to copy the selected paths to the clipboard.
 - UI : Added support for basic math operators (`+`, `-`, `/`, `*`, `%`) in numeric fields.
+- Spreadsheet : Added the ability to drag rows to re-order them.
 
 Fixes
 -----

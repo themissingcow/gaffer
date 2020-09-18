@@ -715,7 +715,7 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		QtCompat.setSectionResizeMode( tableView.verticalHeader(), QtWidgets.QHeaderView.Fixed )
 		tableView.verticalHeader().setDefaultSectionSize( 25 )
-		tableView.verticalHeader().setVisible( False )
+		tableView.verticalHeader().setVisible( mode == self.Mode.RowNames )
 
 		self.__horizontalHeader = GafferUI.Widget( QtWidgets.QHeaderView( QtCore.Qt.Horizontal, tableView ) )
 		self.__horizontalHeader._qtWidget().setDefaultAlignment( QtCore.Qt.AlignLeft )
@@ -729,7 +729,7 @@ class _PlugTableView( GafferUI.Widget ) :
 
 			tableView.horizontalHeader().setSectionsMovable( True )
 			tableView.horizontalHeader().sectionResized.connect( Gaffer.WeakMethod( self.__sectionResized ) )
-			tableView.horizontalHeader().sectionMoved.connect( Gaffer.WeakMethod( self.__sectionMoved ) )
+			tableView.horizontalHeader().sectionMoved.connect( Gaffer.WeakMethod( self.__columnMoved ) )
 
 			self.__ignoreSectionResized = False
 			self.__callingMoveSection = False
@@ -747,6 +747,11 @@ class _PlugTableView( GafferUI.Widget ) :
 			# because we need to do it on a per-cell basis, so will need to use `_CellPlugItemDelegate.paint()`
 			# instead.
 			tableView.setProperty( "gafferToggleIndicator", True )
+
+			tableView.verticalHeader().setSectionsMovable( True )
+			tableView.verticalHeader().sectionMoved.connect( Gaffer.WeakMethod( self.__rowMoved ) )
+
+			self.__callingMoveSection = False
 
 		if mode != self.Mode.Defaults :
 			tableView.horizontalHeader().setVisible( False )
@@ -778,6 +783,7 @@ class _PlugTableView( GafferUI.Widget ) :
 			QtWidgets.QSizePolicy.Fixed if mode == self.Mode.RowNames else QtWidgets.QSizePolicy.Maximum,
 			QtWidgets.QSizePolicy.Fixed if mode == self.Mode.Defaults else QtWidgets.QSizePolicy.Maximum,
 		)
+
 
 	def plugAt( self, position ) :
 
@@ -819,7 +825,7 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		return self.__visibleSection
 
-	def __sectionMoved( self, logicalIndex, oldVisualIndex, newVisualIndex ) :
+	def __columnMoved( self, logicalIndex, oldVisualIndex, newVisualIndex ) :
 
 		if self.__callingMoveSection :
 			return
@@ -832,6 +838,38 @@ class _PlugTableView( GafferUI.Widget ) :
 				for logicalIndex in range( 0, header.count() ) :
 					plug = model.plugForIndex( model.index( 0, logicalIndex ) )
 					Gaffer.Metadata.registerValue( plug, "spreadsheet:columnIndex", header.visualIndex( logicalIndex ) )
+
+	def __rowMoved( self, logicalIndex, oldVisualIndex, newVisualIndex ) :
+
+		if self.__callingMoveSection :
+			return
+
+		# The section headers should always be in logical index order before a move,
+		# and we will leave them so after the move (as we're updating the model data
+		# rather than applying a visual transform on top).
+
+		assert( oldVisualIndex == logicalIndex )
+
+		model = self._qtWidget().model()
+		model.moveRow( QtCore.QModelIndex(), oldVisualIndex, QtCore.QModelIndex(), newVisualIndex )
+
+		# At this point, we've updated the model so the underlying plugs have
+		# been updated.  However, in the header, the visual index of the rows
+		# remains at their dragged positions.  This means that the plug data is
+		# now displayed in the wrong place. We need to reset the visual indices
+		# of the affected rows (between new/old indices) back to their logical
+		# index.
+
+		affectedRowsStart = min( oldVisualIndex, newVisualIndex )
+		affectedRowsEnd = max( oldVisualIndex, newVisualIndex )
+
+		self.__callingMoveSection = True
+
+		header = self._qtWidget().verticalHeader()
+		for newIndex in range( affectedRowsStart, affectedRowsEnd + 1 ) :
+			header.moveSection( header.visualIndex( newIndex ), newIndex )
+
+		self.__callingMoveSection = False
 
 	def __sectionResized( self, logicalIndex, oldSize, newSize ) :
 
@@ -1186,6 +1224,8 @@ class _PlugTableModel( QtCore.QAbstractTableModel ) :
 				if not label :
 					label = IECore.CamelCase.toSpaced( cellPlug.getName() )
 				return label
+			elif orientation == QtCore.Qt.Vertical and self.__mode == _PlugTableView.Mode.RowNames :
+				return "="
 			return section
 
 	def flags( self, index ) :
@@ -1289,6 +1329,29 @@ class _PlugTableModel( QtCore.QAbstractTableModel ) :
 
 		with Gaffer.UndoScope( plug.ancestor( Gaffer.ScriptNode ) ) :
 			plug.setValue( value )
+
+		return True
+
+	def moveRows( self, sourceParent, sourceRow, count, destParent, destRow ) :
+
+		assert( self.__mode == _PlugTableView.Mode.RowNames )
+		assert( sourceParent == destParent )
+		assert( not sourceParent.isValid() )
+		assert( destRow < sourceRow or destRow >= ( sourceRow + count ) )
+
+		# The supplied row indices don't include the default row
+		sourceRowsStart = sourceRow + 1
+		sourceRowsEnd = sourceRowsStart + count - 1
+		destRow += 1
+
+		# In theory, this should be wrapped in begin/endMoveRows().
+		# This seemed to be unstable for <subtle Qt reasons yet to be figured out>.
+		# As we don't really make use of QPersistentIndex, and we are about
+		# to be dirtied by the plug value changes, omitting. I'm sure this
+		# will come back to haunt us at some point...
+
+		with Gaffer.UndoScope( self.rowsPlug().ancestor( Gaffer.ScriptNode ) ) :
+			_moveRows( self.rowsPlug(), sourceRowsStart, sourceRowsEnd, destRow )
 
 		return True
 
@@ -1905,6 +1968,64 @@ class _StepsChangedScrollBar( QtWidgets.QScrollBar ) :
 
 		if change == self.SliderStepsChange :
 			self.stepsChanged.emit( self.pageStep(), self.singleStep() )
+
+# Spreadsheet editing
+# ===================
+
+def __captureRowState( rowsPlug, startIndex, endIndex ) :
+
+	def capture( plug ) :
+		childState = []
+		for child in Gaffer.Plug.RecursiveRange( plug ) :
+			if child.getInput() is not None :
+				childState.append( child.getInput() )
+			elif hasattr( child, 'getValue' ) :
+				childState.append( child.getValue() )
+			else :
+				childState.append( None )
+		return childState
+
+	rows = rowsPlug.children()[ startIndex : endIndex + 1 ]
+	return [ capture( row ) for row in rows ]
+
+def __applyRowState( rowsPlug, state, startIndex, endIndex ) :
+
+	def apply( childState, plug ) :
+
+		for child, valueOrPlug in zip( Gaffer.Plug.RecursiveRange( plug ), childState ) :
+			if isinstance( valueOrPlug, Gaffer.Plug ) :
+				child.setInput( valueOrPlug )
+			elif hasattr( child, 'setValue' ) :
+				child.setInput( None )
+				child.setValue( valueOrPlug )
+
+	rows = rowsPlug.children()[ startIndex : endIndex + 1 ]
+	assert( len(state) == len(rows) )
+	for i, row in enumerate(rows) :
+		apply( state[i], row )
+
+def _moveRows( rowsPlug, startIndex, endIndex, destIndex ) :
+
+	affectedRowsStart = min( startIndex, destIndex )
+	affectedRowsEnd = max( endIndex, destIndex )
+
+	rowState = __captureRowState( rowsPlug, affectedRowsStart, affectedRowsEnd )
+
+	cutStart = startIndex - affectedRowsStart
+	cutEnd = endIndex - affectedRowsStart
+
+	stateToMove = rowState[ cutStart : cutEnd + 1 ]
+	del rowState[ cutStart : cutEnd + 1 ]
+
+	insertionIndex = destIndex - affectedRowsStart
+	if insertionIndex > cutStart :
+		insertionIndex -= ( endIndex - startIndex )
+
+	for state in reversed( stateToMove ) :
+		rowState.insert( insertionIndex, state )
+
+	with Gaffer.UndoScope( rowsPlug.ancestor( Gaffer.ScriptNode ) ) :
+		__applyRowState( rowsPlug, rowState, affectedRowsStart, affectedRowsEnd )
 
 # Plug context menu
 # =================
