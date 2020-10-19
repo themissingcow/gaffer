@@ -111,6 +111,28 @@ def addColumn( spreadsheet, plug ) :
 # UI Helpers
 # ----------
 
+## \todo Needs UndoScope removing
+def setPlugValues( plugs, value ) :
+
+	if not plugs :
+		return
+
+	with Gaffer.UndoScope( next( iter( plugs ) ).ancestor( Gaffer.ScriptNode ) ) :
+		for plug in plugs :
+			if not Gaffer.MetadataAlgo.readOnly( plug ) and plug.settable() :
+				plug.setValue( value )
+
+## \todo Needs UndoScope removing
+def deleteRows( rowPlugs ) :
+
+	if not rowPlugs :
+		return
+
+	with Gaffer.UndoScope( next( iter( rowPlugs ) ).ancestor( Gaffer.ScriptNode ) ) :
+		for row in rowPlugs :
+			if not Gaffer.MetadataAlgo.readOnly( row ) :
+				row.parent().removeChild( row )
+
 # Note, function may present dialogues.
 ## \todo Needs UndoScope removing
 def createSpreadsheetForNode( node, activeRowNamesConnection, selectorContextVariablePlug, selectorValue, menu ) :
