@@ -125,6 +125,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		tableView.setSelectionBehavior( tableView.SelectItems )
 		self.buttonPressSignal().connect( Gaffer.WeakMethod( self.__buttonPress ), scoped = False )
 		self.buttonDoubleClickSignal().connect( Gaffer.WeakMethod( self.__buttonDoubleClick ), scoped = False )
+		self.keyPressSignal().connect( Gaffer.WeakMethod( self.__keyPress ), scoped = False )
 
 		# Drawing
 
@@ -417,6 +418,16 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		return True
 
+	def __keyPress( self, widget, event ) :
+
+		if event.modifiers == event.Modifiers.None_ :
+
+			if event.key == "Return" :
+				self.__editSelectedPlugs()
+				return True
+
+		return False
+
 	def __headerButtonPress( self, header, event ) :
 
 		if event.buttons != event.Buttons.Right :
@@ -570,7 +581,7 @@ class _PlugTableView( GafferUI.Widget ) :
 				"/Edit Cell%s" % pluralSuffix,
 				{
 					"active" : _CellPlugValueWidget.canEdit( cellPlugs ),
-					"command" : Gaffer.WeakMethod( self.__editSelection )
+					"command" : Gaffer.WeakMethod( self.__editSelectedPlugs )
 				}
 			),
 
@@ -649,12 +660,33 @@ class _PlugTableView( GafferUI.Widget ) :
 		width = Gaffer.Metadata.value( rowsPlug.defaultRow(), "spreadsheet:rowNameWidth" )
 		return width if width is not None else GafferUI.PlugWidget.labelWidth()
 
-	def __editSelection( self ) :
+	def __editSelectedPlugs( self ) :
 
 		selectedPlugs = self.selectedPlugs()
 
+		if self.__mode == self.Mode.RowNames :
+			# Multi-editing row names makes no sense, so pick the first one.
+			# It will also be muddled up with the value cells.
+			firstRow = _PlugTableView.__firstRowPlug( selectedPlugs )
+			if not firstRow :
+				return
+			selectedPlugs = { firstRow["name"] }
+			self.__selectPlugs( selectedPlugs )
+
 		pos = GafferUI.Widget.mousePosition()
 		_EditWindow.popupEditor( selectedPlugs, imath.Box2i( pos, pos ), True )
+
+	def __selectPlugs( self, plugs ) :
+
+		model = self._qtWidget().model()
+
+		selection = QtCore.QItemSelection()
+		for plug in plugs :
+			index = model.indexForPlug( plug )
+			if index.isValid() :
+				selection.select( index, index )
+
+		self._qtWidget().selectionModel().select( selection, QtCore.QItemSelectionModel.ClearAndSelect )
 
 	def __setColumnLabel( self, cellPlug ) :
 
@@ -694,4 +726,14 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		with Gaffer.UndoScope( cellPlug.ancestor( Gaffer.ScriptNode ) ) :
 			_SectionChooser.setSection( cellPlug, sectionName )
+
+	@staticmethod
+	def __firstRowPlug( plugs ) :
+
+		rowPlugs = [ p.parent() for p in plugs if isinstance( p.parent(), Gaffer.Spreadsheet.RowPlug ) ]
+		if rowPlugs :
+			allRows = rowPlugs[0].parent().children()
+			return sorted( rowPlugs, key = allRows.index )[ 0 ]
+
+		return None
 
