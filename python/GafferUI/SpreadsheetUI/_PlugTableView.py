@@ -50,6 +50,7 @@ from Qt import QtCompat
 from . import _Algo
 from . import _Clipboard
 from . import _ProxyModels
+from ._CellPlugValueWidget import _CellPlugValueWidget
 from ._EditWindow import _EditWindow
 from ._PlugTableDelegate import _PlugTableDelegate
 from ._PlugTableModel import _PlugTableModel
@@ -549,9 +550,19 @@ class _PlugTableView( GafferUI.Widget ) :
 		plugMatrix = _Clipboard.createPlugMatrix( cellPlugs )
 
 		items.extend( (
+
+			( "/__EditCellsDivider__", { "divider" : True } ),
+
 			(
-				"/__CopyPasteCellsDivider__", { "divider" : True }
+				"/Edit Cell%s" % pluralSuffix,
+				{
+					"active" : _CellPlugValueWidget.canEdit( cellPlugs ),
+					"command" : Gaffer.WeakMethod( self.__editSelection )
+				}
 			),
+
+			( "/__CopyPasteCellsDivider__", { "divider" : True } ),
+
 			(
 				"Copy Cell%s" % pluralSuffix,
 				{
@@ -624,6 +635,13 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		width = Gaffer.Metadata.value( rowsPlug.defaultRow(), "spreadsheet:rowNameWidth" )
 		return width if width is not None else GafferUI.PlugWidget.labelWidth()
+
+	def __editSelection( self ) :
+
+		selectedPlugs = self.selectedPlugs()
+
+		pos = GafferUI.Widget.mousePosition()
+		_EditWindow.popupEditor( selectedPlugs, imath.Box2i( pos, pos ) )
 
 	def __setColumnLabel( self, cellPlug ) :
 
