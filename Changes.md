@@ -17,6 +17,7 @@ Improvements
   - Improved performance when computing sets which do not exist on the prototypes/children.
   - Improved interactive performance by reducing likelihood of cache eviction for set hashes.
 - SetFilter : Improved interactive performance for CameraTool/TransformTool by enabling use of cached values.
+- Spreadsheet : Enabled cell selection, editing is now achieved with a double-click.
 
 Fixes
 -----

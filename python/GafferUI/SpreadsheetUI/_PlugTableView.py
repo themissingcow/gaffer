@@ -119,8 +119,10 @@ class _PlugTableView( GafferUI.Widget ) :
 		# our own editing via PlugValueWidgets in _EditWindow.
 
 		tableView.setEditTriggers( tableView.NoEditTriggers )
-		tableView.setSelectionMode( QtWidgets.QAbstractItemView.NoSelection )
+		tableView.setSelectionMode( tableView.ExtendedSelection )
+		tableView.setSelectionBehavior( tableView.SelectItems )
 		self.buttonPressSignal().connect( Gaffer.WeakMethod( self.__buttonPress ), scoped = False )
+		self.buttonDoubleClickSignal().connect( Gaffer.WeakMethod( self.__buttonDoubleClick ), scoped = False )
 
 		# Drawing
 
@@ -316,38 +318,45 @@ class _PlugTableView( GafferUI.Widget ) :
 
 	def __buttonPress( self, widget, event ) :
 
+		if event.buttons != event.Buttons.Right :
+			return False
+
 		index = self._qtWidget().indexAt( QtCore.QPoint( event.line.p0.x, event.line.p0.y ) )
 		plug = self._qtWidget().model().plugForIndex( index )
 		if plug is None :
 			return False
 
-		if event.buttons == event.Buttons.Right :
+		if index.flags() & QtCore.Qt.ItemIsEnabled :
 
-			if index.flags() & QtCore.Qt.ItemIsEnabled :
+			if isinstance( plug, Gaffer.Spreadsheet.CellPlug ) :
+				plug = plug["value"]
+			## \todo We need to make this temporary PlugValueWidget just so we
+			# can show a plug menu. We should probably refactor so we can do it
+			# without the widget, but this would touch `PlugValueWidget.popupMenuSignal()`
+			# and all connected client code.
+			self.__menuPlugValueWidget = GafferUI.PlugValueWidget.create( plug )
+			self.__plugMenu = GafferUI.Menu(
+				self.__menuPlugValueWidget._popupMenuDefinition()
+			)
+			self.__plugMenu.popup()
 
-				if isinstance( plug, Gaffer.Spreadsheet.CellPlug ) :
-					plug = plug["value"]
-				## \todo We need to make this temporary PlugValueWidget just so we
-				# can show a plug menu. We should probably refactor so we can do it
-				# without the widget, but this would touch `PlugValueWidget.popupMenuSignal()`
-				# and all connected client code.
-				self.__menuPlugValueWidget = GafferUI.PlugValueWidget.create( plug )
-				self.__plugMenu = GafferUI.Menu(
-					self.__menuPlugValueWidget._popupMenuDefinition()
-				)
-				self.__plugMenu.popup()
+		return True
 
-			return True
+	def __buttonDoubleClick( self, widget, event ) :
 
-		elif event.buttons == event.Buttons.Left :
+		if event.buttons != event.Buttons.Left :
+			return False
 
-			valuePlug = plug["value"] if isinstance( plug, Gaffer.Spreadsheet.CellPlug ) else plug
-			if not isinstance( valuePlug, Gaffer.BoolPlug ) :
-				self.editPlug( plug, scrollTo = False )
+		index = self._qtWidget().indexAt( QtCore.QPoint( event.line.p0.x, event.line.p0.y ) )
+		plug = self._qtWidget().model().plugForIndex( index )
+		if plug is None :
+			return False
 
-			return True
+		valuePlug = plug["value"] if isinstance( plug, Gaffer.Spreadsheet.CellPlug ) else plug
+		if not isinstance( valuePlug, Gaffer.BoolPlug ) :
+			self.editPlug( plug, scrollTo = False )
 
-		return False
+		return True
 
 	def __headerButtonPress( self, header, event ) :
 
