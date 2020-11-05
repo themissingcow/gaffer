@@ -48,6 +48,7 @@ from Qt import QtWidgets
 from Qt import QtCompat
 
 from . import _Algo
+from . import _Clipboard
 from . import _ProxyModels
 from ._EditWindow import _EditWindow
 from ._PlugTableDelegate import _PlugTableDelegate
@@ -545,8 +546,61 @@ class _PlugTableView( GafferUI.Widget ) :
 			)
 		]
 
+		plugMatrix = _Clipboard.createPlugMatrix( cellPlugs )
+		clipboard = self.__getClipboard()
+
+		items.extend( (
+			(
+				"/__CopyPasteCellsDivider__", { "divider" : True }
+			),
+			(
+				"Copy Cell%s" % pluralSuffix,
+				{
+					"command" : Gaffer.WeakMethod( self.__copyCells ),
+					"active" : _Clipboard.canCopyCells( plugMatrix )
+				}
+			),
+			(
+				"Paste Cell%s" % pluralSuffix,
+				{
+					"command" : Gaffer.WeakMethod( self.__pasteCells ),
+					"active" : _Clipboard.canPasteCells( clipboard, plugMatrix )
+				}
+			)
+		) )
+
 		for path, args in reversed( items ) :
 			menuDefinition.prepend( path, args )
+
+	def __getClipboard( self ) :
+
+		appRoot = self._qtWidget().model().rowsPlug().ancestor( Gaffer.ApplicationRoot )
+		return appRoot.getClipboardContents()
+
+	def __setClipboard( self, data ) :
+
+		appRoot = self._qtWidget().model().rowsPlug().ancestor( Gaffer.ApplicationRoot )
+		return appRoot.setClipboardContents( data )
+
+	def __copyCells( self ) :
+
+		selection = self.selectedPlugs()
+
+		with self.__getContext() :
+			clipboardData = _Clipboard.cellData( _Clipboard.createPlugMatrix( selection ) )
+
+		self.__setClipboard( clipboardData )
+
+	def __pasteCells( self ) :
+
+		scriptNode = self._qtWidget().model().rowsPlug().ancestor( Gaffer.ScriptNode )
+
+		targetPlugs = _Clipboard.createPlugMatrix( self.selectedPlugs() )
+
+		# Required for current time if keyframing
+		with self.__getContext() :
+			with Gaffer.UndoScope( scriptNode ) :
+				_Clipboard.pasteCells( self.__getClipboard(), targetPlugs )
 
 	def __getContext( self ) :
 
