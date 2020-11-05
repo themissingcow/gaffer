@@ -65,7 +65,7 @@ class _PlugTableView( GafferUI.Widget ) :
 
 	def __init__( self, selectionModel, mode, **kw ) :
 
-		tableView = _TableView()
+		tableView = _NavigableTable()
 		GafferUI.Widget.__init__( self, tableView, **kw )
 
 		self.__mode = mode;
@@ -736,3 +736,20 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		return None
 
+# Ensures navigation key presses aren't stolen by any application-level actions.
+class _NavigableTable( _TableView ) :
+
+	__protectedKeys = (
+		QtCore.Qt.Key_Left,
+		QtCore.Qt.Key_Right,
+		QtCore.Qt.Key_Up,
+		QtCore.Qt.Key_Down
+	)
+
+	def event( self, event ) :
+
+		if event.type() == QtCore.QEvent.ShortcutOverride and event.key() in self.__protectedKeys :
+			event.accept()
+			return True
+		else :
+			return _TableView.event( self, event )
