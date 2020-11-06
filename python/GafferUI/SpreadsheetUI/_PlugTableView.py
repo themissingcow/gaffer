@@ -350,6 +350,7 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		index = self._qtWidget().indexAt( QtCore.QPoint( event.line.p0.x, event.line.p0.y ) )
 
+		# Disabled items won't show up in the selection model
 		if not index.flags() & QtCore.Qt.ItemIsEnabled :
 			return True
 
@@ -534,6 +535,11 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		includesDefaultRow = any( [ row.isSame( rowsPlug.defaultRow() ) for row in rowPlugs ] )
 		allLocked = all( [ Gaffer.MetadataAlgo.readOnly( row ) for row in rowPlugs ] )
+
+		# We don't have an item for managing the enabled state of rows, because when a
+		# row is disabled (via Qt.ItemIsEnabled flag), those indices are no longer reported
+		# from the selection model. So you could use the item to turn them off, but its
+		# hard to turn them back on again.
 
 		items.extend( (
 			(
