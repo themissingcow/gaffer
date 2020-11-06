@@ -426,7 +426,11 @@ class _PlugTableView( GafferUI.Widget ) :
 				self.__editSelectedPlugs()
 				return True
 
-		if event.modifiers == event.Modifiers.Control :
+			if self.__mode != self.Mode.RowNames and event.key == "D" :
+				self.__toggleCellEnabledState()
+				return True
+
+		elif event.modifiers == event.Modifiers.Control :
 
 			if self.__mode != self.Mode.RowNames :
 
@@ -437,6 +441,7 @@ class _PlugTableView( GafferUI.Widget ) :
 				if event.key == "V" :
 					self.__pasteCells()
 					return True
+
 		return False
 
 	def __headerButtonPress( self, header, event ) :
@@ -557,26 +562,13 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		pluralSuffix = "" if len( cellPlugs ) == 1 else "s"
 
-		defaultRow = next( iter( cellPlugs ) ).ancestor( Gaffer.Spreadsheet.RowsPlug ).defaultRow()
-		defaultRowPlugs = [ c for c in cellPlugs if c.ancestor( Gaffer.Spreadsheet.RowPlug ) == defaultRow ]
-
-		# Disallow disable if the selection contains the default row, and any default row cells aren't adopting
-		# an enabled plug, but do allow a mix of 'should be disable-able but locked/connected' and ok plugs.
-		disabledAllowed = not defaultRowPlugs or any( [ "enabled" not in cell for cell in defaultRowPlugs ] )
-		enabledPlugs = [ cell.enabledPlug() for cell in cellPlugs ]
-		readOnly = all( [ Gaffer.MetadataAlgo.readOnly( plug ) for plug in enabledPlugs ] )
-		settable = all( [ plug.settable() for plug in enabledPlugs ] )
-
-		with self.__getContext() :
-			with IECore.IgnoredExceptions( Gaffer.ProcessException ) :
-				enabled = all( [ plug.getValue() for plug in enabledPlugs ] )
-
+		canToggleEnabledState, currentEnabledState = self.__canToggleCellEnabledState( cellPlugs )
 		items = [
 			(
-				( "/Disable Cell%s" if enabled else "/Enable Cell%s" ) % pluralSuffix,
+				( "/Disable Cell%s" if currentEnabledState else "/Enable Cell%s" ) % pluralSuffix,
 				{
-					"command" : functools.partial( _Algo.setPlugValues, enabledPlugs, not enabled ),
-					"active" : disabledAllowed and not readOnly and settable
+					"command" : Gaffer.WeakMethod( self.__toggleCellEnabledState ),
+					"active" : canToggleEnabledState
 				}
 			)
 		]
@@ -617,6 +609,35 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		for path, args in reversed( items ) :
 			menuDefinition.prepend( path, args )
+
+	def __canToggleCellEnabledState( self, cellPlugs ) :
+
+		defaultRow = next( iter( cellPlugs ) ).ancestor( Gaffer.Spreadsheet.RowsPlug ).defaultRow()
+		defaultRowPlugs = [ c for c in cellPlugs if c.ancestor( Gaffer.Spreadsheet.RowPlug ) == defaultRow ]
+
+		# Disallow disable if the selection contains the default row, and any default row cells aren't adopting
+		# an enabled plug, but do allow a mix of 'should be disable-able but locked/connected' and ok plugs.
+		disabledAllowed = not defaultRowPlugs or any( [ "enabled" not in cell for cell in defaultRowPlugs ] )
+		enabledPlugs = [ cell.enabledPlug() for cell in cellPlugs ]
+		readOnly = all( [ Gaffer.MetadataAlgo.readOnly( plug ) for plug in enabledPlugs ] )
+		settable = all( [ plug.settable() for plug in enabledPlugs ] )
+
+		with self.__getContext() :
+			with IECore.IgnoredExceptions( Gaffer.ProcessException ) :
+				enabled = all( [ plug.getValue() for plug in enabledPlugs ] )
+
+		return ( disabledAllowed and not readOnly and settable, enabled )
+
+	def __toggleCellEnabledState( self ) :
+
+		cellPlugs = [ p for p in self.selectedPlugs() if isinstance( p, Gaffer.Spreadsheet.CellPlug ) ]
+
+		canToggle, currentState = self.__canToggleCellEnabledState( cellPlugs )
+		if not canToggle :
+			return
+
+		enabledPlugs = [ cell.enabledPlug() for cell in cellPlugs ]
+		_Algo.setPlugValues( enabledPlugs, not currentState )
 
 	def __getClipboard( self ) :
 
