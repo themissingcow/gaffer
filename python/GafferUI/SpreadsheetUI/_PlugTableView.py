@@ -426,6 +426,17 @@ class _PlugTableView( GafferUI.Widget ) :
 				self.__editSelectedPlugs()
 				return True
 
+		if event.modifiers == event.Modifiers.Control :
+
+			if self.__mode != self.Mode.RowNames :
+
+				if event.key == "C" :
+					self.__copyCells()
+					return True
+
+				if event.key == "V" :
+					self.__pasteCells()
+					return True
 		return False
 
 	def __headerButtonPress( self, header, event ) :
@@ -591,14 +602,16 @@ class _PlugTableView( GafferUI.Widget ) :
 				"Copy Cell%s" % pluralSuffix,
 				{
 					"command" : Gaffer.WeakMethod( self.__copyCells ),
-					"active" : _Clipboard.canCopyCells( plugMatrix )
+					"active" : _Clipboard.canCopyCells( plugMatrix ),
+					"shortCut" : "Ctrl+C"
 				}
 			),
 			(
 				"Paste Cell%s" % pluralSuffix,
 				{
 					"command" : Gaffer.WeakMethod( self.__pasteCells ),
-					"active" : _Clipboard.canPasteCells( clipboard, plugMatrix )
+					"active" : _Clipboard.canPasteCells( clipboard, plugMatrix ),
+					"shortCut" : "Ctrl+V"
 				}
 			)
 		) )
@@ -619,9 +632,13 @@ class _PlugTableView( GafferUI.Widget ) :
 	def __copyCells( self ) :
 
 		selection = self.selectedPlugs()
+		plugMatrix = _Clipboard.createPlugMatrix( selection )
+
+		if not _Clipboard.canCopyCells( plugMatrix ) :
+			return
 
 		with self.__getContext() :
-			clipboardData = _Clipboard.cellData( _Clipboard.createPlugMatrix( selection ) )
+			clipboardData = _Clipboard.cellData( plugMatrix )
 
 		self.__setClipboard( clipboardData )
 
@@ -630,11 +647,15 @@ class _PlugTableView( GafferUI.Widget ) :
 		scriptNode = self._qtWidget().model().rowsPlug().ancestor( Gaffer.ScriptNode )
 
 		targetPlugs = _Clipboard.createPlugMatrix( self.selectedPlugs() )
+		clipboard = self.__getClipboard()
+
+		if not _Clipboard.canPasteCells( clipboard, targetPlugs ) :
+			return
 
 		# Required for current time if keyframing
 		with self.__getContext() :
 			with Gaffer.UndoScope( scriptNode ) :
-				_Clipboard.pasteCells( self.__getClipboard(), targetPlugs )
+				_Clipboard.pasteCells( clipboard, targetPlugs )
 
 	def __getContext( self ) :
 
