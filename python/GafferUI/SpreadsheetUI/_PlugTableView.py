@@ -394,14 +394,26 @@ class _PlugTableView( GafferUI.Widget ) :
 		if event.buttons != event.Buttons.Left :
 			return False
 
+		# Consistency is a little tricky here. Ideally we'd have the same interaction
+		# for all plug types, without adding unnecessary steps. We standardise
+		# 'double click opens edit window with enabled toggle'. But in the interest of
+		# simplifying common steps, there are the following exceptions.
+		#
+		#  - Bools: Use of Qt Check State presents a single-clickable checkbox, double
+		#    click in other areas of the cell opens edit window.
+		#
+		#  - Presets: Double click displays the popup menu, requires right-click/return
+		#    to display the edit window.
+		#
+		# This is a bit of a compromise, and may need re-visiting once this is used more
+		# in practice.
+
 		index = self._qtWidget().indexAt( QtCore.QPoint( event.line.p0.x, event.line.p0.y ) )
 		plug = self._qtWidget().model().plugForIndex( index )
 		if plug is None :
 			return False
 
-		valuePlug = plug["value"] if isinstance( plug, Gaffer.Spreadsheet.CellPlug ) else plug
-		if not isinstance( valuePlug, Gaffer.BoolPlug ) :
-			self.editPlug( plug, scrollTo = False )
+		self.editPlug( plug, scrollTo = False )
 
 		return True
 
@@ -642,7 +654,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		selectedPlugs = self.selectedPlugs()
 
 		pos = GafferUI.Widget.mousePosition()
-		_EditWindow.popupEditor( selectedPlugs, imath.Box2i( pos, pos ) )
+		_EditWindow.popupEditor( selectedPlugs, imath.Box2i( pos, pos ), True )
 
 	def __setColumnLabel( self, cellPlug ) :
 

@@ -57,7 +57,7 @@ class _EditWindow( GafferUI.Window ) :
 		self.keyPressSignal().connect( Gaffer.WeakMethod( self.__keyPress ), scoped = False )
 
 	@classmethod
-	def popupEditor( cls, plugs, plugBound ) :
+	def popupEditor( cls, plugs, plugBound, forceWindow = False ) :
 
 		if not isinstance( plugs, set ) :
 			plugs = { plugs }
@@ -65,7 +65,8 @@ class _EditWindow( GafferUI.Window ) :
 		plugValueWidget = GafferUI.PlugValueWidget.create( plugs )
 		cls.__currentWindow = _EditWindow( plugValueWidget )
 
-		if isinstance( plugValueWidget, _CellPlugValueWidget ) :
+		# Show a presets menu directly, as long as there is only one plug
+		if len( plugs ) == 1 and not forceWindow and isinstance( plugValueWidget, _CellPlugValueWidget ) :
 			valuePlugValueWidget = plugValueWidget.childPlugValueWidget( next( iter( plugs ) )["value"] )
 			if isinstance( valuePlugValueWidget, GafferUI.PresetsPlugValueWidget ) :
 				if not Gaffer.Metadata.value( next( iter( valuePlugValueWidget.getPlugs() ) ), "presetsPlugValueWidget:isCustom" ) :
