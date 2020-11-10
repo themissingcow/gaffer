@@ -429,20 +429,28 @@ class _PlugTableView( GafferUI.Widget ) :
 				self.__returnKeyPress()
 				return True
 
-			if self.__mode != self.Mode.RowNames and event.key == "D" :
-				self.__toggleCellEnabledState()
+			if event.key == "D" :
+				# See note in __prependRowMenuItems
+				if self.__mode != self.Mode.RowNames :
+					self.__toggleCellEnabledState()
 				return True
 
 		elif event.modifiers == event.Modifiers.Control :
 
-			if self.__mode != self.Mode.RowNames :
+			if event.key in ( "C", "V" ) :
 
-				if event.key == "C" :
-					self.__copyCells()
-					return True
+				if self.__mode != self.Mode.RowNames :
 
-				if event.key == "V" :
-					self.__pasteCells()
+					if event.key == "C" :
+						self.__copyCells()
+						return True
+
+					if event.key == "V" :
+						self.__pasteCells()
+						return True
+
+				else :
+					# Prevent shortcuts falling through which is confusing
 					return True
 
 		return False
