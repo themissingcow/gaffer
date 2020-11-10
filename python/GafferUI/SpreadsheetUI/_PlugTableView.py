@@ -401,8 +401,9 @@ class _PlugTableView( GafferUI.Widget ) :
 		# 'double click opens edit window with enabled toggle'. But in the interest of
 		# simplifying common steps, there are the following exceptions.
 		#
-		#  - Bools: Use of Qt Check State presents a single-clickable checkbox, double
-		#    click in other areas of the cell opens edit window.
+		#  - Bools: Use of Qt Check State presents a single-clickable checkbox,
+		#    double click in other areas of the cell is disabled, as otherwise if
+		#    you double click on the checkbox itself, it toggles, then opens the window.
 		#
 		#  - Presets: Double click displays the popup menu, requires right-click/return
 		#    to display the edit window.
@@ -415,7 +416,8 @@ class _PlugTableView( GafferUI.Widget ) :
 		if plug is None :
 			return False
 
-		self.editPlug( plug, scrollTo = False )
+		if not self._qtWidget().model().presentsCheckstate( index ) :
+			self.editPlug( plug, scrollTo = False )
 
 		return True
 
@@ -424,7 +426,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		if event.modifiers == event.Modifiers.None_ :
 
 			if event.key == "Return" :
-				self.__editSelectedPlugs()
+				self.__returnKeyPress()
 				return True
 
 			if self.__mode != self.Mode.RowNames and event.key == "D" :
@@ -444,6 +446,22 @@ class _PlugTableView( GafferUI.Widget ) :
 					return True
 
 		return False
+
+	def __returnKeyPress( self ) :
+
+		selectionModel = self._qtWidget().selectionModel()
+
+		# If we have a single index selected, and that is presented as
+		# a checkbox, toggle rather than opening the edit window.
+		# This matches the single-click toggle mouse interaction.
+		selectedIndexes = selectionModel.selectedIndexes()
+		if len( selectedIndexes ) == 1 and selectionModel.model().presentsCheckstate( selectedIndexes[0] ) :
+			plug = selectionModel.model().valuePlugForIndex( selectedIndexes[0] )
+			if plug is not None :
+				with self.__getContext() :
+					_Algo.setPlugValues( [ plug ], not plug.getValue() )
+		else :
+			self.__editSelectedPlugs()
 
 	def __headerButtonPress( self, header, event ) :
 
