@@ -669,6 +669,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		readOnly = all( [ Gaffer.MetadataAlgo.readOnly( plug ) for plug in enabledPlugs ] )
 		settable = all( [ plug.settable() for plug in enabledPlugs ] )
 
+		enabled = True
 		with self.__getContext() :
 			with IECore.IgnoredExceptions( Gaffer.ProcessException ) :
 				enabled = all( [ plug.getValue() for plug in enabledPlugs ] )
