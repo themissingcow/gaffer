@@ -167,30 +167,23 @@ def createPlugMatrix( cellPlugs ) :
 	rowsPlug = next( iter( cellPlugs ) ).ancestor( Gaffer.Spreadsheet.RowsPlug )
 	assert( rowsPlug is not None )
 
-	allRowPlugs = rowsPlug.children()
-
-	# A dict of rows, keyed by row index, where each entry is a dict of cells,
-	# keyed by column index.
-	rows = {}
-
-	for cell in cellPlugs :
-
-		rowPlug = cell.ancestor( Gaffer.Spreadsheet.RowPlug )
-		rowIndex = allRowPlugs.index( rowPlug )
-		columnIndex = rowPlug["cells"].children().index( cell )
-
-		rows.setdefault( rowIndex, {} )[ columnIndex ] = cell
-
 	# Build a matrix of rows/columns in ascending order. We don't actually
 	# care what the original row/column indices were, we just need them
 	# to be ascending so the matrix represents the logical order of the cells.
 
 	matrix = []
-	for rowIndex in sorted( rows.keys() ) :
-		rowCells = []
-		for columnIndex in sorted( rows[ rowIndex ].keys() ) :
-			rowCells.append( rows[ rowIndex ][ columnIndex ] )
-		matrix.append( rowCells )
+
+	# First, group cells by row
+	rows = {}
+	for cell in cellPlugs :
+		rowPlug = cell.ancestor( Gaffer.Spreadsheet.RowPlug )
+		rows.setdefault( rowPlug, [] ).append( cell )
+
+	# Then sort the rows, and their cells
+	spreadsheetRows = rowsPlug.children()
+	for rowPlug, selectedCells in sorted( rows.items(), key = lambda item : spreadsheetRows.index( item[0] ) ) :
+		rowCells = rowPlug["cells"].children()
+		matrix.append( sorted( selectedCells, key = rowCells.index ) )
 
 	return matrix
 
