@@ -561,7 +561,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		# hard to turn them back on again.
 
 		clipboard = self.__getClipboard()
-		pasteRowsPluralSuffix = "" if _Clipboard.isCellData( clipboard ) and len( clipboard ) == 1 else "s"
+		pasteRowsPluralSuffix = "" if _Clipboard.isTabularData( clipboard ) and len( clipboard ) == 1 else "s"
 
 		items.extend( (
 			(
@@ -728,7 +728,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		plugMatrix = [ row.children() for row in rowPlugs ]
 
 		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
-			clipboardData = _Clipboard.cellData( plugMatrix )
+			clipboardData = _Clipboard.tabularData( plugMatrix )
 
 		self.__setClipboard( clipboardData )
 

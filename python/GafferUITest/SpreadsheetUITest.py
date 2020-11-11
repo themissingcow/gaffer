@@ -440,11 +440,11 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		s = self.__createSpreadsheet()
 
-		subsetCellData = _Clipboard.cellData( [ [ s["rows"][r]["cells"][c] for c in range(2) ] for r in range( 2, 4 ) ] )
+		subsetCellData = _Clipboard.tabularData( [ [ s["rows"][r]["cells"][c] for c in range(2) ] for r in range( 2, 4 ) ] )
 		self.assertFalse( _Clipboard.canPasteRows( subsetCellData, s["rows"] ) )
 
 		sourceRows = [ s["rows"][r].children() for r in range( 2, 3 ) ]
-		rowData = _Clipboard.cellData( sourceRows )
+		rowData = _Clipboard.tabularData( sourceRows )
 
 		self.assertTrue( _Clipboard.canPasteRows( rowData, s["rows"] ) )
 
@@ -459,7 +459,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		sourceRows = [ s["rows"][r].children() for r in range( 2, 4 ) ]
 		sourceHashes = self.__cellPlugHashes( sourceRows )
-		rowData = _Clipboard.cellData( sourceRows )
+		rowData = _Clipboard.tabularData( sourceRows )
 
 		self.assertEqual( len( s["rows"].children() ), 6 )
 		existingHashes = self.__cellPlugHashes( [ s["rows"][r].children() for r in range( 6 ) ] )
