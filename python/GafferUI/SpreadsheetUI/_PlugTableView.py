@@ -670,7 +670,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		settable = all( [ plug.settable() for plug in enabledPlugs ] )
 
 		enabled = True
-		with self.__getContext() :
+		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
 			with IECore.IgnoredExceptions( Gaffer.ProcessException ) :
 				enabled = all( [ plug.getValue() for plug in enabledPlugs ] )
 
@@ -743,18 +743,6 @@ class _PlugTableView( GafferUI.Widget ) :
 
 		with Gaffer.UndoScope( rowsPlug.ancestor( Gaffer.ScriptNode ) ) :
 			_Clipboard.pasteRows( clipboard, rowsPlug )
-
-	def __getContext( self ) :
-
-		editor = self.ancestor( GafferUI.Editor )
-		if editor is not None:
-			return editor.getContext()
-
-		scriptNode = self._qtWidget().model().rowsPlug().ancestor( Gaffer.ScriptNode )
-		if scriptNode is not None :
-			return scriptNode.context()
-
-		return Gaffer.Context.current()
 
 	@staticmethod
 	def __setRowNameWidth( rowsPlug, width, *unused ) :
