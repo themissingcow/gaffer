@@ -728,7 +728,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		plugMatrix = [ row.children() for row in rowPlugs ]
 
 		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
-			clipboardData = _Clipboard.tabularData( plugMatrix )
+			clipboardData = _ClipboardAlgo.tabularData( plugMatrix )
 
 		self.__setClipboard( clipboardData )
 
@@ -737,11 +737,11 @@ class _PlugTableView( GafferUI.Widget ) :
 		rowsPlug = self._qtWidget().model().rowsPlug()
 		clipboard = self.__getClipboard()
 
-		if not _Clipboard.canPasteRows( clipboard, rowsPlug ) :
+		if not _ClipboardAlgo.canPasteRows( clipboard, rowsPlug ) :
 			return
 
 		with Gaffer.UndoScope( rowsPlug.ancestor( Gaffer.ScriptNode ) ) :
-			_Clipboard.pasteRows( clipboard, rowsPlug )
+			_ClipboardAlgo.pasteRows( clipboard, rowsPlug )
 
 	def __setRowNameWidth( self, width, *unused ) :
 

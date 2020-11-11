@@ -440,18 +440,18 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		s = self.__createSpreadsheet()
 
-		subsetCellData = _Clipboard.tabularData( [ [ s["rows"][r]["cells"][c] for c in range(2) ] for r in range( 2, 4 ) ] )
-		self.assertFalse( _Clipboard.canPasteRows( subsetCellData, s["rows"] ) )
+		subsetCellData = _ClipboardAlgo.tabularData( [ [ s["rows"][r]["cells"][c] for c in range(2) ] for r in range( 2, 4 ) ] )
+		self.assertFalse( _ClipboardAlgo.canPasteRows( subsetCellData, s["rows"] ) )
 
 		sourceRows = [ s["rows"][r].children() for r in range( 2, 3 ) ]
-		rowData = _Clipboard.tabularData( sourceRows )
+		rowData = _ClipboardAlgo.tabularData( sourceRows )
 
-		self.assertTrue( _Clipboard.canPasteRows( rowData, s["rows"] ) )
+		self.assertTrue( _ClipboardAlgo.canPasteRows( rowData, s["rows"] ) )
 
 		s2 = Gaffer.Spreadsheet()
 		s2["rows"].addColumn( Gaffer.IntPlug(), "intColumn", False )
 
-		self.assertFalse( _Clipboard.canPasteRows( rowData, s2["rows"] ) )
+		self.assertFalse( _ClipboardAlgo.canPasteRows( rowData, s2["rows"] ) )
 
 	def testPasteRows( self ) :
 
@@ -459,12 +459,12 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		sourceRows = [ s["rows"][r].children() for r in range( 2, 4 ) ]
 		sourceHashes = self.__cellPlugHashes( sourceRows )
-		rowData = _Clipboard.tabularData( sourceRows )
+		rowData = _ClipboardAlgo.tabularData( sourceRows )
 
 		self.assertEqual( len( s["rows"].children() ), 6 )
 		existingHashes = self.__cellPlugHashes( [ s["rows"][r].children() for r in range( 6 ) ] )
 
-		_Clipboard.pasteRows( rowData, s["rows"] )
+		_ClipboardAlgo.pasteRows( rowData, s["rows"] )
 
 		self.assertEqual( len( s["rows"].children() ), 6 + 2 )
 		newHashes = self.__cellPlugHashes( [ s["rows"][r].children() for r in range( 6 + 2 ) ] )
