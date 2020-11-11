@@ -403,6 +403,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		#  - Bools: Use of Qt Check State presents a single-clickable checkbox,
 		#    double click in other areas of the cell is disabled, as otherwise if
 		#    you double click on the checkbox itself, it toggles, then opens the window.
+		#    Return toggles the value. Requires right-click to display the edit window.
 		#
 		#  - Presets: Double click/return displays the popup menu, requires right-click
 		#    to display the edit window
@@ -450,17 +451,21 @@ class _PlugTableView( GafferUI.Widget ) :
 
 	def __returnKeyPress( self ) :
 
-		selectionModel = self._qtWidget().selectionModel()
+		# If the selection is presented as a checkbox, toggle rather than
+		# opening the edit window.  This matches the single-click toggle mouse
+		# interaction.
 
-		# If we have a single index selected, and that is presented as
-		# a checkbox, toggle rather than opening the edit window.
-		# This matches the single-click toggle mouse interaction.
+		selectionModel = self._qtWidget().selectionModel()
 		selectedIndexes = selectionModel.selectedIndexes()
-		if len( selectedIndexes ) == 1 and selectionModel.model().presentsCheckstate( selectedIndexes[0] ) :
-			plug = selectionModel.model().valuePlugForIndex( selectedIndexes[0] )
-			if plug is not None :
-				with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
-					_Algo.setPlugValues( [ plug ], not plug.getValue() )
+
+		if not selectedIndexes :
+			return
+
+		model = selectionModel.model()
+		if all( [ model.presentsCheckstate( i ) for i in selectedIndexes ] ) :
+			valuePlugs = [ model.valuePlugForIndex( i ) for i in selectedIndexes ]
+			with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
+				_Algo.setPlugValues( valuePlugs, not valuePlugs[0].getValue() )
 		else :
 			self.__editSelectedPlugs()
 
