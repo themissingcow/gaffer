@@ -133,6 +133,26 @@ def pasteCells( cellData, plugs ) :
 		for targetColumnIndex, cell in enumerate( row ) :
 			__setValueFromData( cell, __dataForCell( targetRowIndex, targetColumnIndex, cellData ) )
 
+def canPasteRows( data, rowsPlug ) :
+
+	if not isCellData( data ) :
+		return False
+
+	# Check global read-only status, early out if none can be modified
+	if Gaffer.MetadataAlgo.readOnly( rowsPlug ) :
+		return False
+
+	defaultsData = cellData( [ rowsPlug.defaultRow().children() ] )[0]
+	return __dataSchemaMatches( data[0], defaultsData )
+
+def pasteRows( cellData, rowsPlug ) :
+
+	assert( canPasteRows( cellData, rowsPlug ) )
+
+	# addRows currently returns None, so this is easier
+	newRows = [ rowsPlug.addRow() for _ in cellData ]
+	pasteCells( cellData, [ row.children() for row in newRows ] )
+
 ## Takes an arbitrary list of CellPlugs (perhaps as obtained from a selection,
 # which may be in a jumbled order) and groups them, ordered by row then by
 # column to be compatible with copy/paste.
