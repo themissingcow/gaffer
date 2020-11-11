@@ -705,7 +705,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		if not plugMatrix or not _Clipboard.canCopyCells( plugMatrix ) :
 			return
 
-		with self.__getContext() :
+		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
 			clipboardData = _Clipboard.cellData( plugMatrix )
 
 		self.__setClipboard( clipboardData )
@@ -719,7 +719,7 @@ class _PlugTableView( GafferUI.Widget ) :
 			return
 
 		# Required for current time if keyframing
-		with self.__getContext() :
+		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
 			with Gaffer.UndoScope( targetPlugs[0][0].ancestor( Gaffer.ScriptNode ) ) :
 				_Clipboard.pasteCells( clipboard, targetPlugs )
 
