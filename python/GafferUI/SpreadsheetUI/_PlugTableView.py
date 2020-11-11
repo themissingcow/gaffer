@@ -300,8 +300,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		if self.__mode != self.Mode.RowNames :
 			return
 
-		rowsPlug = self._qtWidget().model().rowsPlug()
-		width = _PlugTableView.__getRowNameWidth( rowsPlug )
+		width = self.__getRowNameWidth()
 		self._qtWidget().horizontalHeader().resizeSection( 0, width )
 
 	@GafferUI.LazyMethod()
@@ -542,12 +541,12 @@ class _PlugTableView( GafferUI.Widget ) :
 			( "Double", GafferUI.PlugWidget.labelWidth() * 2 ),
 		]
 
-		currentWidth = _PlugTableView.__getRowNameWidth( rowsPlug )
+		currentWidth = self.__getRowNameWidth()
 		for label, width in widths :
 			items.append( (
 				"/Width/{}".format( label ),
 				{
-					"command" : functools.partial( _PlugTableView.__setRowNameWidth, rowsPlug, width ),
+					"command" : functools.partial( self.__setRowNameWidth, width ),
 					"active" : not Gaffer.MetadataAlgo.readOnly( rowsPlug ),
 					"checkBox" : width == currentWidth,
 				}
@@ -744,14 +743,16 @@ class _PlugTableView( GafferUI.Widget ) :
 		with Gaffer.UndoScope( rowsPlug.ancestor( Gaffer.ScriptNode ) ) :
 			_Clipboard.pasteRows( clipboard, rowsPlug )
 
-	@staticmethod
-	def __setRowNameWidth( rowsPlug, width, *unused ) :
+	def __setRowNameWidth( self, width, *unused ) :
+
+		rowsPlug = self._qtWidget().model().rowsPlug()
 
 		with Gaffer.UndoScope( rowsPlug.ancestor( Gaffer.ScriptNode ) ) :
 			Gaffer.Metadata.registerValue( rowsPlug.defaultRow(), "spreadsheet:rowNameWidth", width )
 
-	@staticmethod
-	def __getRowNameWidth( rowsPlug ) :
+	def __getRowNameWidth( self ) :
+
+		rowsPlug = self._qtWidget().model().rowsPlug()
 
 		width = Gaffer.Metadata.value( rowsPlug.defaultRow(), "spreadsheet:rowNameWidth" )
 		return width if width is not None else GafferUI.PlugWidget.labelWidth()
