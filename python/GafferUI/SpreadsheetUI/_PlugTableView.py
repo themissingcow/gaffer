@@ -460,7 +460,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		if len( selectedIndexes ) == 1 and selectionModel.model().presentsCheckstate( selectedIndexes[0] ) :
 			plug = selectionModel.model().valuePlugForIndex( selectedIndexes[0] )
 			if plug is not None :
-				with self.__getContext() :
+				with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
 					_Algo.setPlugValues( [ plug ], not plug.getValue() )
 		else :
 			self.__editSelectedPlugs()
