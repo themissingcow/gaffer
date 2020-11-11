@@ -404,8 +404,8 @@ class _PlugTableView( GafferUI.Widget ) :
 		#    double click in other areas of the cell is disabled, as otherwise if
 		#    you double click on the checkbox itself, it toggles, then opens the window.
 		#
-		#  - Presets: Double click displays the popup menu, requires right-click/return
-		#    to display the edit window.
+		#  - Presets: Double click/return displays the popup menu, requires right-click
+		#    to display the edit window
 		#
 		# This is a bit of a compromise, and may need re-visiting once this is used more
 		# in practice.
@@ -770,7 +770,7 @@ class _PlugTableView( GafferUI.Widget ) :
 			self.__selectPlugs( selectedPlugs )
 
 		pos = GafferUI.Widget.mousePosition()
-		_EditWindow.popupEditor( selectedPlugs, imath.Box2i( pos, pos ), True )
+		_EditWindow.popupEditor( selectedPlugs, imath.Box2i( pos, pos ) )
 
 	def __selectPlugs( self, plugs ) :
 
