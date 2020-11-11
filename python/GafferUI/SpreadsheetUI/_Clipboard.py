@@ -42,7 +42,7 @@ import IECore
 # to copy values from. Copy is possible if:
 #
 #   - There is a single row or column.
-#	- There is a contiguous selection across multiple rows/columns.
+#   - There is a contiguous selection across multiple rows/columns.
 #   - Non-contiguous selections have consistent column types per row.
 #
 # `cellPlugMatrix` should be a row-major list of spreadsheet plugs,
@@ -185,7 +185,6 @@ def createPlugMatrix( cellPlugs ) :
 	# care what the original row/column indices were, we just need them
 	# to be ascending so the matrix represents the logical order of the cells.
 
-	# The list comprehension for this is concise, but ... incomprehensible
 	matrix = []
 	for rowIndex in sorted( rows.keys() ) :
 		rowCells = []
