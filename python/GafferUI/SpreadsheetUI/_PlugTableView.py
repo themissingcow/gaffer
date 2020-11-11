@@ -553,7 +553,7 @@ class _PlugTableView( GafferUI.Widget ) :
 				}
 			) )
 
-		includesDefaultRow = any( [ row.isSame( rowsPlug.defaultRow() ) for row in rowPlugs ] )
+		includesDefaultRow = rowsPlug.defaultRow() in rowPlugs
 		allLocked = all( [ Gaffer.MetadataAlgo.readOnly( row ) for row in rowPlugs ] )
 
 		# We don't have an item for managing the enabled state of rows, because when a
