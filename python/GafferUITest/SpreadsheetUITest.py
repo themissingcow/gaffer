@@ -384,7 +384,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		destCells = [ [ s["rows"][r]["cells"][2] ] for r in range( 1, 5 ) ]
 		self.assertNotEqual( self.__cellPlugHashes( destCells ), sourceHashes )
 
-		_ClipboardAlgo.pasteCells( data, destCells )
+		_ClipboardAlgo.pasteCells( data, destCells, 0 )
 		self.assertEqual( self.__cellPlugHashes( destCells ), sourceHashes )
 
 		#  - column wrap
@@ -395,7 +395,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		expected = [ [ r[0], r[0] ] for r in sourceHashes ]
 		self.assertNotEqual( self.__cellPlugHashes( destCells ), expected )
 
-		_ClipboardAlgo.pasteCells( data, destCells )
+		_ClipboardAlgo.pasteCells( data, destCells, 0 )
 		self.assertEqual( self.__cellPlugHashes( destCells ), expected )
 
 		# - row wrap
@@ -406,7 +406,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		expected = sourceHashes[:] + sourceHashes[:4]
 		self.assertNotEqual( self.__cellPlugHashes( destCells ), expected )
 
-		_ClipboardAlgo.pasteCells( data, destCells )
+		_ClipboardAlgo.pasteCells( data, destCells, 0 )
 		self.assertEqual( self.__cellPlugHashes( destCells ), expected )
 
 		# - interleaved paste across 2 matching column types
@@ -416,7 +416,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		destCells = [ [ s["rows"][r]["cells"][ ( r % 2 ) + 1 ] ] for r in range( 1, 5 ) ]
 		self.assertNotEqual( self.__cellPlugHashes( destCells ), sourceHashes )
 
-		_ClipboardAlgo.pasteCells( data, destCells )
+		_ClipboardAlgo.pasteCells( data, destCells, 0 )
 		self.assertEqual( self.__cellPlugHashes( destCells ), sourceHashes )
 
 		# Multi-column + row wrap
@@ -431,7 +431,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		destCells = [ [ s["rows"][r]["cells"][c] for c in range( len(s["rows"][0]["cells"]) ) ] for r in range( 5, 9 ) ]
 		self.assertNotEqual( self.__cellPlugHashes( destCells ), sourceHashes )
 
-		_ClipboardAlgo.pasteCells( data, destCells )
+		_ClipboardAlgo.pasteCells( data, destCells, 0 )
 
 		expected = sourceHashes[:] + sourceHashes[:]
 		self.assertEqual( self.__cellPlugHashes( destCells ), expected )
@@ -497,7 +497,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		origLockedValueHash = s["rows"][2]["cells"][2]["value"].hash()
 
-		_ClipboardAlgo.pasteCells( data, destCells )
+		_ClipboardAlgo.pasteCells( data, destCells, 0 )
 		updatedHashes = self.__cellPlugHashes( destCells )
 
 		for i in ( 0, 1, 4, 5, 6 ) :
@@ -506,6 +506,23 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		self.assertEqual( s["rows"][2]["cells"][2]["value"].hash(), origLockedValueHash )
 		self.assertEqual( updatedHashes[3][0], origHashes[3][0] )
 
+	def testPasteCellsSetsKeyframe( self ) :
+
+		s = self.__createSpreadsheet()
+		script = Gaffer.ScriptNode()
+		script["s"] = s
+
+		targetPlug = s["rows"][2]["cells"][1]["value"]
+		curve = Gaffer.Animation.acquire( targetPlug )
+		curve.addKey( Gaffer.Animation.Key( 0, 1001 ) )
+		self.assertFalse( curve.hasKey( 1002 ) )
+
+		data = _ClipboardAlgo.tabularData( [ [ s["rows"][5]["cells"][1]["value"] ] ] )
+		_ClipboardAlgo.pasteCells( data, [ [ targetPlug ] ], 1002 )
+
+		self.assertTrue( curve.hasKey( 1002 ) )
+		key = curve.getKey( 1002 )
+		self.assertEqual( key.getValue(), 5 )
 
 if __name__ == "__main__":
 	unittest.main()

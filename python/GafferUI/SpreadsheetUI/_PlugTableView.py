@@ -717,10 +717,9 @@ class _PlugTableView( GafferUI.Widget ) :
 		if not plugMatrix or not _ClipboardAlgo.canPasteCells( clipboard, plugMatrix ) :
 			return
 
-		# Required for current time if keyframing
-		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
-			with Gaffer.UndoScope( plugMatrix[0][0].ancestor( Gaffer.ScriptNode ) ) :
-				_ClipboardAlgo.pasteCells( clipboard, plugMatrix )
+		context = self.ancestor( GafferUI.PlugValueWidget ).getContext()
+		with Gaffer.UndoScope( plugMatrix[0][0].ancestor( Gaffer.ScriptNode ) ) :
+			_ClipboardAlgo.pasteCells( clipboard, plugMatrix, context.getTime() )
 
 	def __copyRows( self ) :
 

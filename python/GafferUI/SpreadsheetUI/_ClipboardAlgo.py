@@ -126,13 +126,13 @@ def canPasteCells( tabularData, plugMatrix ) :
 
 	return True
 
-def pasteCells( tabularData, plugs ) :
+def pasteCells( tabularData, plugs, atTime ) :
 
 	assert( canPasteCells( tabularData, plugs ) )
 
 	for targetRowIndex, row in enumerate( plugs ) :
 		for targetColumnIndex, cell in enumerate( row ) :
-			__setValueFromData( cell, __dataForPlug( targetRowIndex, targetColumnIndex, tabularData ) )
+			__setValueFromData( cell, __dataForPlug( targetRowIndex, targetColumnIndex, tabularData ), atTime )
 
 # Returns True if the supplied data can be pasted as new rows in the supplied
 # spreadsheet, this requires the target plugs columns to have matching data types.
@@ -202,7 +202,7 @@ def __getValueAsData( plug ) :
 
 	return IECore.CompoundData( { child.getName() : __getValueAsData( child ) for child in plug } )
 
-def __setValueFromData( plug, data ) :
+def __setValueFromData( plug, data, atTime ) :
 
 	if Gaffer.MetadataAlgo.readOnly( plug ) :
 		return
@@ -213,17 +213,16 @@ def __setValueFromData( plug, data ) :
 			data = data.value
 
 		if Gaffer.Animation.isAnimated( plug ) :
-			context = Gaffer.Context.current()
 			curve = Gaffer.Animation.acquire( plug )
 			if not Gaffer.MetadataAlgo.readOnly( curve ) :
-				curve.addKey( Gaffer.Animation.Key( context.getTime(), data, Gaffer.Animation.Type.Linear ) )
+				curve.addKey( Gaffer.Animation.Key( atTime, data, Gaffer.Animation.Type.Linear ) )
 		elif plug.settable() :
 			plug.setValue( data )
 
 	else :
 
 		for childName, childData in data.items() :
-			__setValueFromData( plug[ childName ], childData )
+			__setValueFromData( plug[ childName ], childData, atTime )
 
 def __dataSchemaMatches( data, otherData ) :
 
