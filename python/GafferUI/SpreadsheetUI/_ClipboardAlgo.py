@@ -155,7 +155,8 @@ def pasteRows( tabularData, rowsPlug ) :
 
 	# addRows currently returns None, so this is easier
 	newRows = [ rowsPlug.addRow() for _ in tabularData ]
-	pasteCells( tabularData, [ row.children() for row in newRows ] )
+	# We know these aren't animated as we've just made them so time is irrelevant
+	pasteCells( tabularData, [ row.children() for row in newRows ], 0 )
 
 ## Takes an arbitrary list of spreadsheet CellPlugs (perhaps as obtained from a
 # selection, which may be in a jumbled order) and groups them, ordered by row
