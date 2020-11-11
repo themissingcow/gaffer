@@ -423,6 +423,8 @@ class _PlugTableView( GafferUI.Widget ) :
 
 	def __keyPress( self, widget, event ) :
 
+		forRows = self.__mode == self.Mode.RowNames
+
 		if event.modifiers == event.Modifiers.None_ :
 
 			if event.key == "Return" :
@@ -431,27 +433,19 @@ class _PlugTableView( GafferUI.Widget ) :
 
 			if event.key == "D" :
 				# See note in __prependRowMenuItems
-				if self.__mode != self.Mode.RowNames :
+				if not forRows :
 					self.__toggleCellEnabledState()
 				return True
 
 		elif event.modifiers == event.Modifiers.Control :
 
-			if event.key in ( "C", "V" ) :
+			if event.key == "C" :
+				self.__copyRows() if forRows else self.__copyCells()
+				return True
 
-				if self.__mode != self.Mode.RowNames :
-
-					if event.key == "C" :
-						self.__copyCells()
-						return True
-
-					if event.key == "V" :
-						self.__pasteCells()
-						return True
-
-				else :
-					# Prevent shortcuts falling through which is confusing
-					return True
+			if event.key == "V" :
+				self.__pasteRows() if forRows else self.__pasteCells()
+				return True
 
 		return False
 
@@ -567,7 +561,28 @@ class _PlugTableView( GafferUI.Widget ) :
 		# from the selection model. So you could use the item to turn them off, but its
 		# hard to turn them back on again.
 
+		clipboard = self.__getClipboard()
+		pasteRowsPluralSuffix = "" if _Clipboard.isCellData( clipboard ) and len( clipboard ) == 1 else "s"
+
 		items.extend( (
+			(
+				"/__CopyPasteRowsDivider__", { "divider" : True }
+			),
+			(
+				"Copy Row%s" % pluralSuffix,
+				{
+					"command" : Gaffer.WeakMethod( self.__copyRows ),
+					"shortCut" : "Ctrl+C"
+				}
+			),
+			(
+				"Paste Row%s" % pasteRowsPluralSuffix,
+				{
+					"command" : Gaffer.WeakMethod( self.__pasteRows ),
+					"active" : _Clipboard.canPasteRows( self.__getClipboard(), rowsPlug ),
+					"shortCut" : "Ctrl+V"
+				}
+			),
 			(
 				"/__DeleteRowDivider__", { "divider" : True }
 			),
@@ -707,6 +722,27 @@ class _PlugTableView( GafferUI.Widget ) :
 			with Gaffer.UndoScope( targetPlugs[0][0].ancestor( Gaffer.ScriptNode ) ) :
 				_Clipboard.pasteCells( clipboard, targetPlugs )
 
+	def __copyRows( self ) :
+
+		rowPlugs = _PlugTableView.__orderedRowsPlugs( self.selectedPlugs() )
+		plugMatrix = [ row.children() for row in rowPlugs ]
+
+		with self.__getContext() :
+			clipboardData = _Clipboard.cellData( plugMatrix )
+
+		self.__setClipboard( clipboardData )
+
+	def __pasteRows( self ) :
+
+		rowsPlug = self._qtWidget().model().rowsPlug()
+		clipboard = self.__getClipboard()
+
+		if not _Clipboard.canPasteRows( clipboard, rowsPlug ) :
+			return
+
+		with Gaffer.UndoScope( rowsPlug.ancestor( Gaffer.ScriptNode ) ) :
+			_Clipboard.pasteRows( clipboard, rowsPlug )
+
 	def __getContext( self ) :
 
 		editor = self.ancestor( GafferUI.Editor )
@@ -738,10 +774,10 @@ class _PlugTableView( GafferUI.Widget ) :
 		if self.__mode == self.Mode.RowNames :
 			# Multi-editing row names makes no sense, so pick the first one.
 			# It will also be muddled up with the value cells.
-			firstRow = _PlugTableView.__firstRowPlug( selectedPlugs )
-			if not firstRow :
+			rows = _PlugTableView.__orderedRowsPlugs( selectedPlugs )
+			if not rows :
 				return
-			selectedPlugs = { firstRow["name"] }
+			selectedPlugs = { rows[0]["name"] }
 			self.__selectPlugs( selectedPlugs )
 
 		pos = GafferUI.Widget.mousePosition()
@@ -799,14 +835,14 @@ class _PlugTableView( GafferUI.Widget ) :
 			_SectionChooser.setSection( cellPlug, sectionName )
 
 	@staticmethod
-	def __firstRowPlug( plugs ) :
+	def __orderedRowsPlugs( plugs ) :
 
-		rowPlugs = [ p.parent() for p in plugs if isinstance( p.parent(), Gaffer.Spreadsheet.RowPlug ) ]
+		rowPlugs = { p.ancestor( Gaffer.Spreadsheet.RowPlug ) for p in plugs }
 		if rowPlugs :
-			allRows = rowPlugs[0].parent().children()
-			return sorted( rowPlugs, key = allRows.index )[ 0 ]
+			allRows = next( iter( rowPlugs ) ).parent().children()
+			return sorted( rowPlugs, key = allRows.index )
 
-		return None
+		return []
 
 # Ensures navigation key presses aren't stolen by any application-level actions.
 class _NavigableTable( _TableView ) :
