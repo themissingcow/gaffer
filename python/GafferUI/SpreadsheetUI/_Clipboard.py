@@ -45,39 +45,39 @@ import IECore
 #   - There is a contiguous selection across multiple rows/columns.
 #   - Non-contiguous selections have consistent column types per row.
 #
-# `cellPlugMatrix` should be a row-major list of spreadsheet plugs,
-# as returned by createPlugMatrix, ie: [ [ r1c1, ... ], [ r2c1, ... ] ]
-def canCopyCells( cellPlugMatrix ) :
+# `plugMatrix` should be a row-major list of value plugs,
+# as returned by createPlugMatrixFromCells, ie: [ [ r1c1, ... ], [ r2c1, ... ] ]
+def canCopyPlugs( plugMatrix ) :
 
-	if not cellPlugMatrix :
+	if not plugMatrix :
 		return False
 
-	if not cellPlugMatrix[0] :
+	if not plugMatrix[0] :
 		return False
 
 	# Check each row has the same column configuration
-	if len( cellPlugMatrix ) > 1 :
+	if len( plugMatrix ) > 1 :
 
 		def rowData( row ) :
 			return [ __getValueAsData( cell ) for cell in row ]
 
-		columnTemplate = rowData( cellPlugMatrix[0] )
-		for row in cellPlugMatrix[ 1 : ] :
+		columnTemplate = rowData( plugMatrix[0] )
+		for row in plugMatrix[ 1 : ] :
 			if not __dataSchemaMatches( rowData( row ), columnTemplate )  :
 				return False
 
 	return True
 
-## Builds a 'paste-able' data for the supplied cell plugs
-def cellData( cellPlugMatrix ) :
+## Builds a 'paste-able' data for the supplied plug matrix
+def tabularData( plugMatrix ) :
 
-	assert( canCopyCells( cellPlugMatrix ) )
+	assert( canCopyPlugs( plugMatrix ) )
 	return IECore.ObjectVector(
-		[ IECore.ObjectVector( [ __getValueAsData( cell ) for cell in row ] ) for row in cellPlugMatrix ]
+		[ IECore.ObjectVector( [ __getValueAsData( column ) for column in row ] ) for row in plugMatrix ]
 	)
 
 # Returns True if the supplied object appears to be pasteable cell data
-def isCellData( data ) :
+def isTabularData( data ) :
 
 	if not data :
 		return False
@@ -99,39 +99,40 @@ def isCellData( data ) :
 
 	return True
 
-# Returns True if the supplied data can be pasted on to the supplied plugs, in that
-# the cell value types are compatible with the corresponding cellData.
-def canPasteCells( cellData, cellPlugMatrix ) :
+# Returns True if the supplied data can be pasted on to the supplied
+# spreadsheet cell plugs, in that the cell value types are compatible with the
+# corresponding tabularData.
+def canPasteCells( tabularData, plugMatrix ) :
 
-	if not isCellData( cellData ) :
+	if not isTabularData( tabularData ) :
 		return False
 
 	# Check global read-only status, early out if none can be modified
-	rowsPlug = cellPlugMatrix[0][0].ancestor( Gaffer.Spreadsheet.RowsPlug )
+	rowsPlug = plugMatrix[0][0].ancestor( Gaffer.Spreadsheet.RowsPlug )
 	if rowsPlug and Gaffer.MetadataAlgo.readOnly( rowsPlug ) :
 		return False
 
-	# Though we know cellData is coherent, we still need to check the
+	# Though we know tabularData is coherent, we still need to check the
 	# full target cell matrix as it may be of different dimensions
 	# and/or made from a non-contiguous selection.
 	# This allows us to support copy/paste entirely by compatible value type,
 	# rather than any semantics of the plugs themselves, which maximises the
 	# potential re-use between columns.
-	for targetRowIndex, row in enumerate( cellPlugMatrix ) :
+	for targetRowIndex, row in enumerate( plugMatrix ) :
 		for targetColumnIndex, cell in enumerate( row ) :
-			data = __dataForCell( targetRowIndex, targetColumnIndex, cellData )
+			data = __dataForPlug( targetRowIndex, targetColumnIndex, tabularData )
 			if not __dataSchemaMatches( data, __getValueAsData( cell ) ) :
 				return False
 
 	return True
 
-def pasteCells( cellData, plugs ) :
+def pasteCells( tabularData, plugs ) :
 
-	assert( canPasteCells( cellData, plugs ) )
+	assert( canPasteCells( tabularData, plugs ) )
 
 	for targetRowIndex, row in enumerate( plugs ) :
 		for targetColumnIndex, cell in enumerate( row ) :
-			__setValueFromData( cell, __dataForCell( targetRowIndex, targetColumnIndex, cellData ) )
+			__setValueFromData( cell, __dataForPlug( targetRowIndex, targetColumnIndex, tabularData ) )
 
 # Returns True if the supplied data can be pasted as new rows, this
 # requires the target plugs columns to have matching data types.
@@ -156,10 +157,10 @@ def pasteRows( cellData, rowsPlug ) :
 	newRows = [ rowsPlug.addRow() for _ in cellData ]
 	pasteCells( cellData, [ row.children() for row in newRows ] )
 
-## Takes an arbitrary list of CellPlugs (perhaps as obtained from a selection,
-# which may be in a jumbled order) and groups them, ordered by row then by
-# column to be compatible with copy/paste.
-def createPlugMatrix( cellPlugs ) :
+## Takes an arbitrary list of spreadsheet CellPlugs (perhaps as obtained from a
+# selection, which may be in a jumbled order) and groups them, ordered by row
+# then by column to be compatible with copy/paste.
+def createPlugMatrixFromCells( cellPlugs ) :
 
 	if not cellPlugs :
 		return []
@@ -188,7 +189,7 @@ def createPlugMatrix( cellPlugs ) :
 	return matrix
 
 # Wraps the lookup indices into the available data space
-def __dataForCell( targetRowIndex, targetColumnIndex, data ) :
+def __dataForPlug( targetRowIndex, targetColumnIndex, data ) :
 
 	return data[ targetRowIndex % len(data) ][ targetColumnIndex % len(data[0]) ]
 

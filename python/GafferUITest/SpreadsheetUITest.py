@@ -104,10 +104,10 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		s = self.__createSpreadsheet()
 
-		self.assertEqual( _Clipboard.createPlugMatrix( [] ), [] )
+		self.assertEqual( _Clipboard.createPlugMatrixFromCells( [] ), [] )
 
 		self.assertEqual(
-			_Clipboard.createPlugMatrix( [ s["rows"][1]["cells"][2] ] ),
+			_Clipboard.createPlugMatrixFromCells( [ s["rows"][1]["cells"][2] ] ),
 			[ [ s["rows"][1]["cells"][2] ] ]
 		)
 
@@ -122,31 +122,31 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		expected = [ [ s["rows"][r]["cells"][c] for c in sorted(columns) ] for r in sorted(rows) ]
 
-		self.assertEqual( _Clipboard.createPlugMatrix( plugs ), expected  )
+		self.assertEqual( _Clipboard.createPlugMatrixFromCells( plugs ), expected )
 
-	def testCanCopyCells( self ) :
+	def testCanCopyPlugs( self ) :
 
 		s = self.__createSpreadsheet()
 
-		self.assertFalse( _Clipboard.canCopyCells( [] ) )
-		self.assertFalse( _Clipboard.canCopyCells( [ [] ] ) )
+		self.assertFalse( _Clipboard.canCopyPlugs( [] ) )
+		self.assertFalse( _Clipboard.canCopyPlugs( [ [] ] ) )
 
 		# Single cell
 
-		self.assertTrue( _Clipboard.canCopyCells( [
+		self.assertTrue( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0] ]
 		] ) )
 
 		# Two rows (contigious)
 
-		self.assertTrue( _Clipboard.canCopyCells( [
+		self.assertTrue( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0] ],
 			[ s["rows"][2]["cells"][0] ]
 		] ) )
 
 		# Three rows (non-contiguous)
 
-		self.assertTrue( _Clipboard.canCopyCells( [
+		self.assertTrue( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0] ],
 			[ s["rows"][3]["cells"][0] ],
 			[ s["rows"][5]["cells"][0] ]
@@ -154,19 +154,19 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		# Two columns (contiguous)
 
-		self.assertTrue( _Clipboard.canCopyCells( [
+		self.assertTrue( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0], s["rows"][1]["cells"][1] ]
 		] ) )
 
 		# Three columns (non-contiguous)
 
-		self.assertTrue( _Clipboard.canCopyCells( [
+		self.assertTrue( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0], s["rows"][1]["cells"][1], s["rows"][1]["cells"][3] ]
 		] ) )
 
 		# Three rows, two columns (non-contiguous)
 
-		self.assertTrue( _Clipboard.canCopyCells( [
+		self.assertTrue( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0], s["rows"][1]["cells"][2] ],
 			[ s["rows"][3]["cells"][0], s["rows"][3]["cells"][2] ],
 			[ s["rows"][4]["cells"][0], s["rows"][4]["cells"][2] ],
@@ -174,26 +174,26 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		# Non-contiguous but compatible column types
 
-		self.assertTrue( _Clipboard.canCopyCells( [
+		self.assertTrue( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][1], s["rows"][1]["cells"][4] ],
 			[ s["rows"][4]["cells"][2], s["rows"][4]["cells"][4] ],
 		] ) )
 
 		# Mixed column types
 
-		self.assertFalse( _Clipboard.canCopyCells( [
+		self.assertFalse( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0], s["rows"][1]["cells"][1] ],
 			[ s["rows"][4]["cells"][1], s["rows"][4]["cells"][2] ],
 		] ) )
 
 		# Inconsistent column counts
 
-		self.assertFalse( _Clipboard.canCopyCells( [
+		self.assertFalse( _Clipboard.canCopyPlugs( [
 			[ s["rows"][1]["cells"][0], s["rows"][1]["cells"][1] ],
 			[ s["rows"][4]["cells"][1] ]
 		] ) )
 
-	def testIsCellData( self ) :
+	def testIsTabularData( self ) :
 
 		O = IECore.ObjectVector
 		C = IECore.CompoundData
@@ -224,7 +224,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 				O([ C({ "znabled" : B( True ), "value" : I( 2 ) }) ])
 			]),
 		) :
-			self.assertFalse( _Clipboard.isCellData( d ) )
+			self.assertFalse( _Clipboard.isTabularData( d ) )
 
 		for d in (
 			# one row, one column
@@ -242,9 +242,9 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 				O([ C({ "enabled" : B( True ), "value" : I( 4 ) }), C({ "enabled" : B( True ),  "value" : F( 4 ) }) ])
 			]),
 		) :
-			self.assertTrue( _Clipboard.isCellData( d ) )
+			self.assertTrue( _Clipboard.isTabularData( d ) )
 
-	def testCellData( self ) :
+	def testTabularData( self ) :
 
 		s = self.__createSpreadsheet()
 
@@ -265,9 +265,9 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 			] ) for r in plugs
 		] )
 
-		data = _Clipboard.cellData( plugs )
+		data = _Clipboard.tabularData( plugs )
 
-		self.assertTrue( _Clipboard.isCellData( data ) )
+		self.assertTrue( _Clipboard.isTabularData( data ) )
 		self.assertEqual( data, expected )
 
 		# Test inerleaved compatible (int) columns
@@ -283,7 +283,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 			] ) for r in ( 1, 2 )
 		] )
 
-		self.assertEqual( _Clipboard.cellData( plugs ), expected )
+		self.assertEqual( _Clipboard.tabularData( plugs ), expected )
 
 	def testCanPasteCells( self ) :
 
@@ -292,7 +292,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		# Single Column
 
 		plugs = [ [ s["rows"][r]["cells"][1] ] for r in ( 1, 2 ) ]
-		data = _Clipboard.cellData( plugs )
+		data = _Clipboard.tabularData( plugs )
 
 		# Bad data
 
@@ -331,7 +331,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		# Multiple Columns
 
 		plugs = [ [ s["rows"][r]["cells"][c] for c in range( 3 ) ] for r in ( 1, 2 ) ]
-		data = _Clipboard.cellData( plugs )
+		data = _Clipboard.tabularData( plugs )
 
 		self.assertTrue( _Clipboard.canPasteCells( data, plugs ) )
 
@@ -362,7 +362,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		#  - column wrap with additional colunms
 
 		plugs = [ [ s["rows"][r]["cells"][c] for c in ( 1, 2 ) ] for r in ( 1, 2 ) ]
-		data = _Clipboard.cellData( plugs )
+		data = _Clipboard.tabularData( plugs )
 
 		self.assertTrue(
 			_Clipboard.canPasteCells( data, [ [ s["rows"][r]["cells"][c] for c in ( 1, 2, 4 ) ] for r in range( 1, 2 ) ] )
@@ -377,7 +377,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		sourceCells = [ [ s["rows"][r]["cells"][1] ] for r in range( 1, 5 ) ]
 		sourceHashes = self.__cellPlugHashes( sourceCells )
 
-		data = _Clipboard.cellData( sourceCells )
+		data = _Clipboard.tabularData( sourceCells )
 
 		#   - matching dest
 
@@ -426,7 +426,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 		sourceCells = [ [ s["rows"][r]["cells"][c] for c in range( len(s["rows"][0]["cells"]) ) ] for r in range( 1, 3 ) ]
 		sourceHashes = self.__cellPlugHashes( sourceCells )
 
-		data = _Clipboard.cellData( sourceCells )
+		data = _Clipboard.tabularData( sourceCells )
 
 		destCells = [ [ s["rows"][r]["cells"][c] for c in range( len(s["rows"][0]["cells"]) ) ] for r in range( 5, 9 ) ]
 		self.assertNotEqual( self.__cellPlugHashes( destCells ), sourceHashes )
@@ -482,7 +482,7 @@ class SpreadsheetUITest( GafferUITest.TestCase ) :
 
 		sourceCells = [ [ s["rows"][r]["cells"][1] ] for r in range( 7 ) ]
 		sourceHashes = self.__cellPlugHashes( sourceCells )
-		data = _Clipboard.cellData( sourceCells )
+		data = _Clipboard.tabularData( sourceCells )
 
 		destCells = [ [ s["rows"][r]["cells"][2] ] for r in range( 7 ) ]
 		origHashes = self.__cellPlugHashes( destCells )

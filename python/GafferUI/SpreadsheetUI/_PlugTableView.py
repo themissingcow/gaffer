@@ -619,7 +619,7 @@ class _PlugTableView( GafferUI.Widget ) :
 			)
 		]
 
-		plugMatrix = _Clipboard.createPlugMatrix( cellPlugs )
+		plugMatrix = _Clipboard.createPlugMatrixFromCells( cellPlugs )
 
 		items.extend( (
 
@@ -639,7 +639,7 @@ class _PlugTableView( GafferUI.Widget ) :
 				"Copy Cell%s" % pluralSuffix,
 				{
 					"command" : Gaffer.WeakMethod( self.__copyCells ),
-					"active" : _Clipboard.canCopyCells( plugMatrix ),
+					"active" : _Clipboard.canCopyPlugs( plugMatrix ),
 					"shortCut" : "Ctrl+C"
 				}
 			),
@@ -699,28 +699,28 @@ class _PlugTableView( GafferUI.Widget ) :
 	def __copyCells( self ) :
 
 		selection = self.selectedPlugs()
-		plugMatrix = _Clipboard.createPlugMatrix( selection )
+		plugMatrix = _Clipboard.createPlugMatrixFromCells( selection )
 
-		if not plugMatrix or not _Clipboard.canCopyCells( plugMatrix ) :
+		if not plugMatrix or not _Clipboard.canCopyPlugs( plugMatrix ) :
 			return
 
 		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
-			clipboardData = _Clipboard.cellData( plugMatrix )
+			clipboardData = _Clipboard.tabularData( plugMatrix )
 
 		self.__setClipboard( clipboardData )
 
 	def __pasteCells( self ) :
 
-		targetPlugs = _Clipboard.createPlugMatrix( self.selectedPlugs() )
+		plugMatrix = _Clipboard.createPlugMatrixFromCells( self.selectedPlugs() )
 		clipboard = self.__getClipboard()
 
-		if not targetPlugs or not _Clipboard.canPasteCells( clipboard, targetPlugs ) :
+		if not plugMatrix or not _Clipboard.canPasteCells( clipboard, plugMatrix ) :
 			return
 
 		# Required for current time if keyframing
 		with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
-			with Gaffer.UndoScope( targetPlugs[0][0].ancestor( Gaffer.ScriptNode ) ) :
-				_Clipboard.pasteCells( clipboard, targetPlugs )
+			with Gaffer.UndoScope( plugMatrix[0][0].ancestor( Gaffer.ScriptNode ) ) :
+				_Clipboard.pasteCells( clipboard, plugMatrix )
 
 	def __copyRows( self ) :
 
