@@ -551,7 +551,7 @@ class _PlugTableView( GafferUI.Widget ) :
 			items.append( (
 				"/Width/{}".format( label ),
 				{
-					"command" : functools.partial( self.__setRowNameWidth, width ),
+					"command" : functools.partial( Gaffer.WeakMethod( self.__setRowNameWidth ), width ),
 					"active" : not Gaffer.MetadataAlgo.readOnly( rowsPlug ),
 					"checkBox" : width == currentWidth,
 				}
