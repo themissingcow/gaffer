@@ -464,8 +464,7 @@ class _PlugTableView( GafferUI.Widget ) :
 		model = selectionModel.model()
 		if all( [ model.presentsCheckstate( i ) for i in selectedIndexes ] ) :
 			valuePlugs = [ model.valuePlugForIndex( i ) for i in selectedIndexes ]
-			with self.ancestor( GafferUI.PlugValueWidget ).getContext() :
-				_Algo.setPlugValues( valuePlugs, not valuePlugs[0].getValue() )
+			_Algo.setPlugValues( valuePlugs, not valuePlugs[0].getValue() )
 		else :
 			self.__editSelectedPlugs()
 
