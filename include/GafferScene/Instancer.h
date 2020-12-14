@@ -40,6 +40,8 @@
 
 #include "GafferScene/BranchCreator.h"
 
+#include "Gaffer/CompoundDataPlug.h"
+
 namespace GafferScene
 {
 
@@ -47,6 +49,52 @@ class GAFFERSCENE_API Instancer : public BranchCreator
 {
 
 	public :
+
+
+		/// Compound plug for representing an image format in a way
+		/// easily edited by users, with individual child plugs for
+		/// each aspect of the format.
+		class ContextVariablePlug : public Gaffer::ValuePlug
+		{
+
+			public :
+
+				GAFFER_PLUG_DECLARE_TYPE( ContextVariablePlug, InstancerContextVariablePlugTypeId, Gaffer::ValuePlug );
+
+				ContextVariablePlug(
+					const std::string &name = defaultName<ContextVariablePlug>(),
+					Direction direction=In,
+					unsigned flags = Default,
+					bool defaultEnable = true
+				);
+
+				~ContextVariablePlug() override;
+
+				/// Accepts no children following construction.
+				bool acceptsChild( const GraphComponent *potentialChild ) const override;
+				Gaffer::PlugPtr createCounterpart( const std::string &name, Direction direction ) const override;
+
+				Gaffer::BoolPlug *enabledPlug();
+				const Gaffer::BoolPlug *enabledPlug() const;
+
+				Gaffer::StringPlug *namePlug();
+				const Gaffer::StringPlug *namePlug() const;
+
+				Gaffer::FloatPlug *quantizePlug();
+				const Gaffer::FloatPlug *quantizePlug() const;
+
+		};
+
+		IE_CORE_DECLAREPTR( ContextVariablePlug );
+
+		typedef Gaffer::FilteredChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Invalid, ContextVariablePlug> > ContextVariablePlugIterator;
+		typedef Gaffer::FilteredChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::In, ContextVariablePlug> > InputContextVariablePlugIterator;
+		typedef Gaffer::FilteredChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Out, ContextVariablePlug> > OutputContextVariablePlugIterator;
+
+		typedef Gaffer::FilteredRecursiveChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Invalid, ContextVariablePlug>, Gaffer::PlugPredicate<> > RecursiveContextVariablePlugIterator;
+		typedef Gaffer::FilteredRecursiveChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::In, ContextVariablePlug>, Gaffer::PlugPredicate<> > RecursiveInputContextVariablePlugIterator;
+		typedef Gaffer::FilteredRecursiveChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Out, ContextVariablePlug>, Gaffer::PlugPredicate<> > RecursiveOutputContextVariablePlugIterator;
+
 
 		Instancer( const std::string &name=defaultName<Instancer>() );
 		~Instancer() override;
@@ -99,12 +147,39 @@ class GAFFERSCENE_API Instancer : public BranchCreator
 		Gaffer::BoolPlug *encapsulateInstanceGroupsPlug();
 		const Gaffer::BoolPlug *encapsulateInstanceGroupsPlug() const;
 
+		Gaffer::BoolPlug *generateSeedsPlug();
+		const Gaffer::BoolPlug *generateSeedsPlug() const;
+
+		Gaffer::StringPlug *seedVariablePlug();
+		const Gaffer::StringPlug *seedVariablePlug() const;
+
+		Gaffer::IntPlug *numSeedsPlug();
+		const Gaffer::IntPlug *numSeedsPlug() const;
+
+		Gaffer::IntPlug *seedsScramblePlug();
+		const Gaffer::IntPlug *seedsScramblePlug() const;
+
+		Gaffer::BoolPlug *seedsPassthroughAllIdsPlug();
+		const Gaffer::BoolPlug *seedsPassthroughAllIdsPlug() const;
+
+		Gaffer::ValuePlug *contextVariablesPlug();
+		const Gaffer::ValuePlug *contextVariablesPlug() const;
+
+		ContextVariablePlug *timeOffsetPlug();
+		const ContextVariablePlug *timeOffsetPlug() const;
+
+		Gaffer::AtomicCompoundDataPlug *variationsPlug();
+		const Gaffer::AtomicCompoundDataPlug *variationsPlug() const;
+
 		void affects( const Gaffer::Plug *input, AffectedPlugsContainer &outputs ) const override;
 
 	protected :
 
 		void hash( const Gaffer::ValuePlug *output, const Gaffer::Context *context, IECore::MurmurHash &h ) const override;
 		void compute( Gaffer::ValuePlug *output, const Gaffer::Context *context ) const override;
+
+		Gaffer::ValuePlug::CachePolicy computeCachePolicy( const Gaffer::ValuePlug *output ) const override;
+		Gaffer::ValuePlug::CachePolicy hashCachePolicy( const Gaffer::ValuePlug *output ) const override;
 
 		bool affectsBranchBound( const Gaffer::Plug *input ) const override;
 		void hashBranchBound( const ScenePath &parentPath, const ScenePath &branchPath, const Gaffer::Context *context, IECore::MurmurHash &h ) const override;

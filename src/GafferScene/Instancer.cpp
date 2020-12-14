@@ -54,9 +54,11 @@
 #include "IECore/VectorTypedData.h"
 
 #include "boost/lexical_cast.hpp"
+#include "boost/unordered_set.hpp"
 
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_reduce.h"
+#include "tbb/spin_mutex.h"
 
 #include <functional>
 #include <unordered_map>
@@ -72,6 +74,213 @@ using namespace GafferScene;
 
 namespace
 {
+
+const PrimitiveVariable *findVertexVariable( const IECoreScene::Primitive* primitive, const InternedString &name )
+{
+	PrimitiveVariableMap::const_iterator it = primitive->variables.find( name );
+	if( it == primitive->variables.end() || it->second.interpolation != IECoreScene::PrimitiveVariable::Vertex )
+	{
+		return nullptr;
+	}
+	return &it->second;
+}
+
+// We need to able to quantize all our basic numeric values, so we have a set of templates for this, with
+// a special exception if you try to use a non-zero quantize on a type that can't be quantize ( ie. a string ).
+//
+// We quantize by forcing a value to the closest value that is a multiple of quantize.  For vector types,
+// this is done independently for each axis.
+class QuantizeException {};
+
+template <class T>
+inline T quantize( const T &v, float q )
+{
+	if( q != 0.0f )
+	{
+		throw QuantizeException();
+	}
+	return v;
+}
+
+template <>
+inline float quantize( const float &v, float q )
+{
+	if( q == 0.0f )
+	{
+		return v;
+	}
+	// \todo : Higher performance round
+	float r = q * round( v / q );
+
+	// Letting negative zeros slip through is confusing because they hash to different values
+	if( r == 0 )
+	{
+		r = 0;
+	}
+	return r;
+}
+
+template <>
+inline int quantize( const int &v, float q )
+{
+	if( q == 0.0f )
+	{
+		return v;
+	}
+	int intQuantize = round( q );
+	if( intQuantize == 0 )
+	{
+		return v;
+	}
+	int halfQuantize = intQuantize / 2;
+	return intQuantize * ( ( v + halfQuantize ) / intQuantize );
+}
+
+template <class T>
+inline Vec2<T> quantize( const Vec2<T> &v, float q )
+{
+	return Vec2<T>( quantize( v[0], q ), quantize( v[1], q ) );
+}
+
+template <class T>
+inline Vec3<T> quantize( const Vec3<T> &v, float q )
+{
+	return Vec3<T>( quantize( v[0], q ), quantize( v[1], q ), quantize( v[2], q ) );
+}
+
+template <>
+inline Color3f quantize( const Color3f &v, float q )
+{
+	return Color3f( quantize( v[0], q ), quantize( v[1], q ), quantize( v[2], q ) );
+}
+
+template <>
+inline Color4f quantize( const Color4f &v, float q )
+{
+	return Color4f( quantize( v[0], q ), quantize( v[1], q ), quantize( v[2], q ), quantize( v[3], q ) );
+}
+
+// An internal struct for storing everything we need to know about a context modification we're making
+// when accessing the prototypes scene
+struct PrototypeContextVariable
+{
+	InternedString name;               // Name of context variable
+	const PrimitiveVariable *primVar;  // Primitive variable that drives it
+	float quantize;                    // The interval we quantize to
+	bool offsetMode;                   // Special mode for adding to existing variable instead of replacing
+	bool seedMode;                     // Special mode for seed context which is driven from the id
+	int numSeeds;                      // When in seedMode, the number of distinct seeds to output
+	int seedScramble;                  // A random seed that affects how seeds are generated
+};
+
+
+// A functor for use with IECore::dispatch that sets a variable in a context, based on a PrototypeContextVariable
+// struct
+struct AccessPrototypeContextVariable
+{
+	template< class T>
+	void operator()( const TypedData<vector<T>> *data, const PrototypeContextVariable &v, int index, Context &context )
+	{
+		T raw = PrimitiveVariable::IndexedView<T>( *v.primVar )[index];
+		T value = quantize( raw, v.quantize );
+		context.set( v.name, value );
+	}
+
+	void operator()( const TypedData<vector<float>> *data, const PrototypeContextVariable &v, int index, Context &context )
+
+	{
+		float raw = PrimitiveVariable::IndexedView<float>( *v.primVar )[index];
+		float value = quantize( raw, v.quantize );
+
+		if( v.offsetMode )
+		{
+			context.set( v.name, value + context.get<float>( v.name ) );
+		}
+		else
+		{
+			context.set( v.name, value );
+		}
+	}
+
+	void operator()( const TypedData<vector<int>> *data, const PrototypeContextVariable &v, int index, Context &context )
+
+	{
+		int raw = PrimitiveVariable::IndexedView<int>( *v.primVar )[index];
+		int value = quantize( raw, v.quantize );
+
+		if( v.offsetMode )
+		{
+			context.set( v.name, float(value) + context.get<float>( v.name ) );
+		}
+		else
+		{
+			context.set( v.name, value );
+		}
+	}
+
+	void operator()( const Data *data, const PrototypeContextVariable &v, int index, Context &context )
+	{
+		throw IECore::Exception( "Context variable prim vars must contain vector data" );
+	}
+};
+
+// A functor for use with IECore::dispatch that adds to a hash, based on a PrototypeContextVariable
+// struct.  This is only used to count the number of unique hashes, so we can take some shortcuts, for
+// example, we ignore the offsetMode, because adding the offsets to a different global time doesn't change
+// the number of unique offsets.  We also ignore the name of the context variable, since we always process
+// the same PrototypeContextVariables in the same order
+struct UniqueHashPrototypeContextVariable
+{
+	template< class T>
+	void operator()( const TypedData<vector<T>> *data, const PrototypeContextVariable &v, int index, MurmurHash &contextHash )
+
+	{
+		T raw = PrimitiveVariable::IndexedView<T>( *v.primVar )[index];
+		T value = quantize( raw, v.quantize );
+		contextHash.append( value );
+	}
+
+	void operator()( const Data *data, const PrototypeContextVariable &v, int index, MurmurHash &contextHash )
+	{
+		throw IECore::Exception( "Context variable prim vars must contain vector data" );
+	}
+};
+
+// We create a seed integer that corresponds to the id by hashing the id and then modulo'ing to
+// numSeeds, to create seeds in the range 0 .. numSeeds-1 that persistently correspond to the ids,
+// with a grouping pattern that can be changed with seedScramble
+int seedForPoint( int index, const PrimitiveVariable *primVar, int numSeeds, int seedScramble )
+{
+	int id = index;
+	if( primVar )
+	{
+		// TODO - the exception this will throw on non-int primvars may not be very clear to users
+		id = PrimitiveVariable::IndexedView<int>( *primVar )[index];
+	}
+
+	// numSeeds is set to 0 when we're just passing through the id
+	if( numSeeds != 0 )
+	{
+		// The method used for random generation of seeds is actually rather important.
+		// We need a random access RNG which allows evaluating any input id independently,
+		// and should not create lattice artifacts if interpreted as a spacial attribute
+		// such as size.  This is actually a somewhat demanding set of criteria - many
+		// easy to seed RNGs with a small state space could create lattice artifacts.
+		//
+		// Using MurmurHash doesn't seem conceptually perfect, but it uses code we already
+		// have around, should perform fairly well ( might help if the constructor was inlined ),
+		// and I've tested for lattice artifacts by generating 200 000 points with Y set to
+		// seedId, and X set to point index.  These points looked good, with even distribution
+		// and no latticing, so this is probably a reasonable approach to stick with
+
+		IECore::MurmurHash seedHash;
+		seedHash.append( seedScramble );
+		seedHash.append( id );
+		id = int( ( double( seedHash.h1() ) / double( UINT64_MAX ) ) * double( numSeeds ) );
+		id = id % numSeeds;  // For the rare case h1 / max == 1.0, make sure we stay in range
+	}
+	return id;
+}
 
 InternedString g_prototypeRootName( "root" );
 ConstInternedStringVectorDataPtr g_emptyNames = new InternedStringVectorData();
@@ -91,7 +300,7 @@ class Instancer::EngineData : public Data
 	public :
 
 		EngineData(
-			ConstObjectPtr object,
+			ConstPrimitivePtr primitive,
 			PrototypeMode mode,
 			const std::string &index,
 			const std::string &rootsVariable,
@@ -102,18 +311,20 @@ class Instancer::EngineData : public Data
 			const std::string &orientation,
 			const std::string &scale,
 			const std::string &attributes,
-			const std::string &attributePrefix
+			const std::string &attributePrefix,
+			const std::vector< PrototypeContextVariable > &prototypeContextVariables
 		)
-			:	m_numPrototypes( 0 ),
+			:	m_primitive( primitive ),
+				m_numPrototypes( 0 ),
 				m_numValidPrototypes( 0 ),
 				m_indices( nullptr ),
 				m_ids( nullptr ),
 				m_positions( nullptr ),
 				m_orientations( nullptr ),
 				m_scales( nullptr ),
-				m_uniformScales( nullptr )
+				m_uniformScales( nullptr ),
+				m_prototypeContextVariables( prototypeContextVariables )
 		{
-			m_primitive = runTimeCast<const Primitive>( object );
 			if( !m_primitive )
 			{
 				return;
@@ -176,6 +387,18 @@ class Instancer::EngineData : public Data
 			}
 
 			initAttributes( attributes, attributePrefix );
+
+			for( const auto &v : m_prototypeContextVariables )
+			{
+				// We need to check if the primVars driving the context are the right size.
+				// There's not an easy way to do this on PrimitiveVariable without knowing the type,
+				// but it should be safe to assume as a precondition that the primVar matches the
+				// appropriate size on m_primitive
+				if( v.primVar && m_primitive->variableSize( v.primVar->interpolation ) != numPoints() )
+				{
+					throw IECore::Exception( boost::str( boost::format( "Context primitive variable for \"%1%\" has incorrect size" ) % v.name.string() ) );
+				}
+			}
 		}
 
 		size_t numPoints() const
@@ -267,6 +490,129 @@ class Instancer::EngineData : public Data
 				writableResult[attributeCreator.first] = attributeCreator.second( pointIndex );
 			}
 			return result;
+		}
+
+		typedef std::vector< boost::unordered_set< IECore::MurmurHash > > PrototypeHashes;
+
+		// In order to compute the number of variations, we compute a unique hash for every context we use
+		// for evaluating prototypes.  So that we can track which sources are responsible for variations,
+		// we return a vector of hash sets, corresponding to the order of m_prototypeContextVariables,
+		// plus an extra entry at the end for the combined result of all variation sources
+		std::shared_ptr<PrototypeHashes> uniquePrototypeHashes() const
+		{
+			std::shared_ptr<PrototypeHashes> result( new PrototypeHashes( m_prototypeContextVariables.size() + 1 ) );
+
+			std::vector< IECore::MurmurHash> prototypeHashes;
+			prototypeHashes.reserve( m_prototypeIndexRemap.size() );
+			for( int indexRemap : m_prototypeIndexRemap )
+			{
+				IECore::MurmurHash h;
+				// We throw away rootStrings during initPrototypes, necessitating interating
+				// all the path components here - if perf was important, it would be better to
+				// store rootStrings
+				InternedStringVectorDataPtr path = m_roots[ indexRemap ];
+				h.append( &(path->readable())[0], path->readable().size() );
+				prototypeHashes.push_back( h );
+			}
+
+
+			size_t n = numPoints();
+			std::vector< IECore::MurmurHash > contextVariableHashes( m_prototypeContextVariables.size() );
+			for( unsigned int i = 0; i < n; i++ )
+			{
+				IECore::MurmurHash totalHash;
+				if( m_indices )
+				{
+					totalHash = prototypeHashes[ ((*m_indices)[i]) % m_numPrototypes ];
+				}
+				hashPrototypeContext( i, contextVariableHashes );
+				for( unsigned int j = 0; j < contextVariableHashes.size(); j++ )
+				{
+					(*result)[j].insert( contextVariableHashes[j] );
+					totalHash.append( contextVariableHashes[j] );
+				}
+				(*result)[contextVariableHashes.size()].insert( totalHash );
+			}
+
+			return result;
+		}
+
+		bool hasContextVariables() const
+		{
+			return m_prototypeContextVariables.size() != 0;
+		}
+
+		std::vector<InternedString> contextVariableNames() const
+		{
+			std::vector<InternedString> result;
+			for( const auto &i : m_prototypeContextVariables )
+			{
+				result.push_back( i.name );
+			}
+			return result;
+		}
+
+		// Set the context variables in the context for this index, based on the m_prototypeContextVariables
+		// set up for this EngineData
+		void fillPrototypeContext( int index, Context &context ) const
+		{
+			for( unsigned int i = 0; i < m_prototypeContextVariables.size(); i++ )
+			{
+				const PrototypeContextVariable &v = m_prototypeContextVariables[i];
+
+				if( v.seedMode )
+				{
+					context.set( v.name, seedForPoint( index, v.primVar, v.numSeeds, v.seedScramble ) );
+					continue;
+				}
+
+				if( !v.primVar )
+				{
+					continue;
+				}
+
+				try
+				{
+					IECore::dispatch( v.primVar->data.get(), AccessPrototypeContextVariable(), v, index, context );
+				}
+				catch( QuantizeException &e )
+				{
+					throw IECore::Exception( boost::str( boost::format( "Context variable \"%1%\" : cannot quantize variable of type %2%" ) % index % v.primVar->data->typeName() ) );
+				}
+			}
+		}
+
+		// Return hashes for the context variables for this index, in the same order as m_prototypeContextVariables
+		void hashPrototypeContext( int index, std::vector< IECore::MurmurHash > &contextVariableHashes ) const
+		{
+			for( unsigned int i = 0; i < m_prototypeContextVariables.size(); i++ )
+			{
+				contextVariableHashes[i] = IECore::MurmurHash(); // TODO - if we're using this in inner loops, it should probably be inlined?
+				const PrototypeContextVariable &v = m_prototypeContextVariables[i];
+
+				if( v.seedMode )
+				{
+					contextVariableHashes[i].append( seedForPoint( index, v.primVar, v.numSeeds, v.seedScramble ) );
+					continue;
+				}
+
+				if( !v.primVar )
+				{
+					continue;
+				}
+
+				try
+				{
+					IECore::dispatch(
+						v.primVar->data.get(), UniqueHashPrototypeContextVariable(),
+						v, index, contextVariableHashes[i]
+					);
+				}
+				catch( QuantizeException &e )
+				{
+					throw IECore::Exception( boost::str( boost::format( "Context variable \"%1%\" : cannot quantize variable of type %2%" ) % index % v.primVar->data->typeName() ) );
+				}
+			}
 		}
 
 	protected :
@@ -486,17 +832,70 @@ class Instancer::EngineData : public Data
 		boost::container::flat_map<InternedString, AttributeCreator> m_attributeCreators;
 		MurmurHash m_attributesHash;
 
+		const std::vector< PrototypeContextVariable > m_prototypeContextVariables;
 };
 
 //////////////////////////////////////////////////////////////////////////
 // Instancer
 //////////////////////////////////////////////////////////////////////////
 
+GAFFER_PLUG_DEFINE_TYPE( Instancer::ContextVariablePlug );
+
+Instancer::ContextVariablePlug::ContextVariablePlug( const std::string &name, Direction direction, unsigned flags, bool defaultEnable )
+	:   ValuePlug( name, direction, flags )
+{
+	addChild( new BoolPlug( "enabled", direction, defaultEnable ) );
+	addChild( new StringPlug( "name", direction, "" ) );
+	addChild( new FloatPlug( "quantize", direction, 0.1, 0 ) );
+}
+
+Instancer::ContextVariablePlug::~ContextVariablePlug()
+{
+}
+
+bool Instancer::ContextVariablePlug::acceptsChild( const GraphComponent *potentialChild ) const
+{
+	return children().size() < 3;
+}
+
+Gaffer::PlugPtr Instancer::ContextVariablePlug::createCounterpart( const std::string &name, Direction direction ) const
+{
+	return new Instancer::ContextVariablePlug( name, direction, getFlags() );
+}
+
+Gaffer::BoolPlug *Instancer::ContextVariablePlug::enabledPlug()
+{
+	return getChild<BoolPlug>( 0 );
+}
+
+const Gaffer::BoolPlug *Instancer::ContextVariablePlug::enabledPlug() const
+{
+	return getChild<BoolPlug>( 0 );
+}
+
+Gaffer::StringPlug *Instancer::ContextVariablePlug::namePlug()
+{
+	return getChild<StringPlug>( 1 );
+}
+
+const Gaffer::StringPlug *Instancer::ContextVariablePlug::namePlug() const
+{
+	return getChild<StringPlug>( 1 );
+}
+
+Gaffer::FloatPlug *Instancer::ContextVariablePlug::quantizePlug()
+{
+	return getChild<FloatPlug>( 2 );
+}
+
+const Gaffer::FloatPlug *Instancer::ContextVariablePlug::quantizePlug() const
+{
+	return getChild<FloatPlug>( 2 );
+}
+
 GAFFER_NODE_DEFINE_TYPE( Instancer );
 
 size_t Instancer::g_firstPlugIndex = 0;
-
-static const IECore::InternedString idContextName( "instancer:id" );
 
 Instancer::Instancer( const std::string &name )
 	:	BranchCreator( name )
@@ -515,6 +914,14 @@ Instancer::Instancer( const std::string &name )
 	addChild( new StringPlug( "attributes", Plug::In ) );
 	addChild( new StringPlug( "attributePrefix", Plug::In ) );
 	addChild( new BoolPlug( "encapsulateInstanceGroups", Plug::In ) );
+	addChild( new BoolPlug( "generateSeeds", Plug::In ) );
+	addChild( new StringPlug( "seedVariable", Plug::In, "seed" ) );
+	addChild( new IntPlug( "numSeeds", Plug::In, 10, 1 ) );
+	addChild( new IntPlug( "seedsScramble", Plug::In ) );
+	addChild( new BoolPlug( "seedsPassthroughAllIds", Plug::In ) );
+	addChild( new ValuePlug( "contextVariables", Plug::In ) );
+	addChild( new ContextVariablePlug( "timeOffset", Plug::In, Plug::Flags::Default, false ) );
+	addChild( new AtomicCompoundDataPlug( "variations", Plug::Out, new CompoundData() ) );
 	addChild( new ObjectPlug( "__engine", Plug::Out, NullObject::defaultNullObject() ) );
 	addChild( new AtomicCompoundDataPlug( "__prototypeChildNames", Plug::Out, new CompoundData ) );
 	addChild( new ScenePlug( "__capsuleScene", Plug::Out ) );
@@ -660,34 +1067,114 @@ const Gaffer::BoolPlug *Instancer::encapsulateInstanceGroupsPlug() const
 	return getChild<BoolPlug>( g_firstPlugIndex + 12 );
 }
 
+Gaffer::BoolPlug *Instancer::generateSeedsPlug()
+{
+	return getChild<BoolPlug>( g_firstPlugIndex + 13 );
+}
+
+const Gaffer::BoolPlug *Instancer::generateSeedsPlug() const
+{
+	return getChild<BoolPlug>( g_firstPlugIndex + 13 );
+}
+
+Gaffer::StringPlug *Instancer::seedVariablePlug()
+{
+	return getChild<StringPlug>( g_firstPlugIndex + 14 );
+}
+
+const Gaffer::StringPlug *Instancer::seedVariablePlug() const
+{
+	return getChild<StringPlug>( g_firstPlugIndex + 14 );
+}
+
+Gaffer::IntPlug *Instancer::numSeedsPlug()
+{
+	return getChild<IntPlug>( g_firstPlugIndex + 15 );
+}
+
+const Gaffer::IntPlug *Instancer::numSeedsPlug() const
+{
+	return getChild<IntPlug>( g_firstPlugIndex + 15 );
+}
+
+Gaffer::IntPlug *Instancer::seedsScramblePlug()
+{
+	return getChild<IntPlug>( g_firstPlugIndex + 16 );
+}
+
+const Gaffer::IntPlug *Instancer::seedsScramblePlug() const
+{
+	return getChild<IntPlug>( g_firstPlugIndex + 16 );
+}
+
+Gaffer::BoolPlug *Instancer::seedsPassthroughAllIdsPlug()
+{
+	return getChild<BoolPlug>( g_firstPlugIndex + 17 );
+}
+
+const Gaffer::BoolPlug *Instancer::seedsPassthroughAllIdsPlug() const
+{
+	return getChild<BoolPlug>( g_firstPlugIndex + 17 );
+}
+
+Gaffer::ValuePlug *Instancer::contextVariablesPlug()
+{
+	return getChild<ValuePlug>( g_firstPlugIndex + 18 );
+}
+
+const Gaffer::ValuePlug *Instancer::contextVariablesPlug() const
+{
+	return getChild<ValuePlug>( g_firstPlugIndex + 18 );
+}
+
+GafferScene::Instancer::ContextVariablePlug *Instancer::timeOffsetPlug()
+{
+	return getChild<ContextVariablePlug>( g_firstPlugIndex + 19 );
+}
+
+const GafferScene::Instancer::ContextVariablePlug *Instancer::timeOffsetPlug() const
+{
+	return getChild<ContextVariablePlug>( g_firstPlugIndex + 19 );
+}
+
+Gaffer::AtomicCompoundDataPlug *Instancer::variationsPlug()
+{
+	return getChild<AtomicCompoundDataPlug>( g_firstPlugIndex + 20 );
+}
+
+const Gaffer::AtomicCompoundDataPlug *Instancer::variationsPlug() const
+{
+	return getChild<AtomicCompoundDataPlug>( g_firstPlugIndex + 20 );
+}
+
 Gaffer::ObjectPlug *Instancer::enginePlug()
 {
-	return getChild<ObjectPlug>( g_firstPlugIndex + 13 );
+	return getChild<ObjectPlug>( g_firstPlugIndex + 21 );
 }
 
 const Gaffer::ObjectPlug *Instancer::enginePlug() const
 {
-	return getChild<ObjectPlug>( g_firstPlugIndex + 13 );
+	return getChild<ObjectPlug>( g_firstPlugIndex + 21 );
 }
 
 Gaffer::AtomicCompoundDataPlug *Instancer::prototypeChildNamesPlug()
 {
-	return getChild<AtomicCompoundDataPlug>( g_firstPlugIndex + 14 );
+	return getChild<AtomicCompoundDataPlug>( g_firstPlugIndex + 22 );
 }
 
 const Gaffer::AtomicCompoundDataPlug *Instancer::prototypeChildNamesPlug() const
 {
-	return getChild<AtomicCompoundDataPlug>( g_firstPlugIndex + 14 );
+	return getChild<AtomicCompoundDataPlug>( g_firstPlugIndex + 22 );
 }
 
 GafferScene::ScenePlug *Instancer::capsuleScenePlug()
 {
-	return getChild<ScenePlug>( g_firstPlugIndex + 15 );
+	return getChild<ScenePlug>( g_firstPlugIndex + 23 );
 }
 
 const GafferScene::ScenePlug *Instancer::capsuleScenePlug() const
 {
-	return getChild<ScenePlug>( g_firstPlugIndex + 15 );
+	return getChild<ScenePlug>( g_firstPlugIndex + 23 );
 }
 
 void Instancer::affects( const Plug *input, AffectedPlugsContainer &outputs ) const
@@ -707,7 +1194,14 @@ void Instancer::affects( const Plug *input, AffectedPlugsContainer &outputs ) co
 		input == orientationPlug() ||
 		input == scalePlug() ||
 		input == attributesPlug() ||
-		input == attributePrefixPlug()
+		input == attributePrefixPlug() ||
+		input == generateSeedsPlug() ||
+		input == seedVariablePlug() ||
+		input == numSeedsPlug() ||
+		input == seedsScramblePlug() ||
+		input == seedsPassthroughAllIdsPlug() ||
+		timeOffsetPlug()->isAncestorOf( input ) ||
+		contextVariablesPlug()->isAncestorOf( input )
 	)
 	{
 		outputs.push_back( enginePlug() );
@@ -744,6 +1238,15 @@ void Instancer::affects( const Plug *input, AffectedPlugsContainer &outputs ) co
 	{
 		outputs.push_back( capsuleScenePlug()->setPlug() );
 	}
+
+	if(
+		input == enginePlug() ||
+		input == filterPlug() ||
+		input == inPlug()->childNamesPlug()
+	)
+	{
+		outputs.push_back( variationsPlug() );
+	}
 }
 
 void Instancer::hash( const Gaffer::ValuePlug *output, const Gaffer::Context *context, IECore::MurmurHash &h ) const
@@ -766,10 +1269,60 @@ void Instancer::hash( const Gaffer::ValuePlug *output, const Gaffer::Context *co
 		scalePlug()->hash( h );
 		attributesPlug()->hash( h );
 		attributePrefixPlug()->hash( h );
+
+		generateSeedsPlug()->hash( h );
+		seedVariablePlug()->hash( h );
+		numSeedsPlug()->hash( h );
+		seedsScramblePlug()->hash( h );
+		seedsPassthroughAllIdsPlug()->hash( h );
+
+		for( ContextVariablePlugIterator it( contextVariablesPlug() ); !it.done(); ++it )
+		{
+			const ContextVariablePlug *plug = it->get();
+			if( plug->enabledPlug()->getValue() )
+			{
+				plug->namePlug()->hash( h );
+				plug->quantizePlug()->hash( h );
+			}
+		}
+
+		if( timeOffsetPlug()->enabledPlug()->getValue() )
+		{
+			timeOffsetPlug()->namePlug()->hash( h );
+			timeOffsetPlug()->quantizePlug()->hash( h );
+		}
 	}
 	else if( output == prototypeChildNamesPlug() )
 	{
 		enginePlug()->hash( h );
+	}
+	else if( output == variationsPlug() )
+	{
+		// The sum of the variations across different engines depends on all the engines, but
+		// not their order.  We can create a cheap order-independent hash by summing the hashes
+		// all of the engines
+		std::atomic<uint64_t> h1Accum( 0 ), h2Accum( 0 );
+		struct HashAccum
+		{
+			HashAccum( const ObjectPlug *enginePlug, std::atomic<uint64_t> &h1Accum, std::atomic<uint64_t> &h2Accum ):
+				m_enginePlug( enginePlug ), m_h1Accum( h1Accum ), m_h2Accum( h2Accum )
+			{
+			}
+			bool operator()( const GafferScene::ScenePlug *scene, const GafferScene::ScenePlug::ScenePath &path )
+			{
+				IECore::MurmurHash h = m_enginePlug->hash();
+				m_h1Accum.fetch_add( h.h1(), std::memory_order_relaxed );
+				m_h2Accum.fetch_add( h.h2(), std::memory_order_relaxed );
+				return true;
+			}
+		private:
+			const ObjectPlug *m_enginePlug;
+			std::atomic<uint64_t> &m_h1Accum, &m_h2Accum;
+		};
+
+		HashAccum a( enginePlug(), h1Accum, h2Accum );
+		GafferScene::SceneAlgo::filteredParallelTraverse( inPlug(), filterPlug(), a );
+		h.append( IECore::MurmurHash( h1Accum, h2Accum ) );
 	}
 }
 
@@ -793,9 +1346,95 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 			);
 		}
 
+		ConstPrimitivePtr primitive = runTimeCast<const Primitive>( inPlug()->objectPlug()->getValue() );
+
+		// Prepare the list of all context variables that affect the prototype scope, in an internal
+		// struct that makes it easier to use them later
+		std::vector< PrototypeContextVariable > prototypeContextVariables;
+
+		// Put together a list of everything that affect the contexts this engine will evaluate prototypes
+		// in
+		if( primitive )
+		{
+			bool timeOffsetEnabled = timeOffsetPlug()->enabledPlug()->getValue();
+			std::string seedContextName = "";
+			if( generateSeedsPlug()->getValue() )
+			{
+				seedContextName = seedVariablePlug()->getValue();
+			}
+
+			for( ContextVariablePlugIterator it( contextVariablesPlug() ); !it.done(); ++it )
+			{
+				const ContextVariablePlug *plug = it->get();
+
+				InternedString name = plug->namePlug()->getValue();
+				if( !plug->enabledPlug()->getValue() || name == "" )
+				{
+					continue;
+				}
+
+				if( name.string() == seedContextName )
+				{
+					throw IECore::Exception( "Cannot manually specify \"" + name.string() + "\" which is driven by seedVariable." );
+				}
+				else if( name.string() == "frame" && timeOffsetEnabled )
+				{
+					throw IECore::Exception( "Cannot manually specify \"frame\" when time offset is enabled." );
+				}
+
+				float quantize = plug->quantizePlug()->getValue();
+
+				// We hold onto m_primitive for the lifetime of EngineData, so it's safe to keep raw pointers
+				// to the primvars
+				const PrimitiveVariable *primVar = findVertexVariable( primitive.get(), name );
+
+				// If primVar is null, it will be silently ignored
+				//
+				// \todo : We usually don't want to error on a missing primVar when there's an
+				// obvious fallback ( like just not setting the corresponding context variable ).
+				// But should we at least warn about this somehow?
+				//
+				// We do still insert it into prototypeContextVariables though - this ensures that
+				// all EngineData for this instancer has the same set of variables, which makes it
+				// easier when we compare all the engines to count unique prototypes
+
+				prototypeContextVariables.push_back( { name, primVar, quantize, false, false, 0, 0 } );
+			}
+
+			if( seedContextName != "" )
+			{
+				const PrimitiveVariable *idPrimVar = findVertexVariable( primitive.get(), idPlug()->getValue() );
+				if( idPrimVar && idPrimVar->data->typeId() != IntVectorDataTypeId )
+				{
+					idPrimVar = nullptr;
+				}
+
+				int seeds = seedsPassthroughAllIdsPlug()->getValue() ? 0 : numSeedsPlug()->getValue();
+				int seedScramble = seedsScramblePlug()->getValue();
+				prototypeContextVariables.push_back( { seedContextName, idPrimVar, 0, false, true, seeds, seedScramble } );
+			}
+
+			if( timeOffsetEnabled )
+			{
+				const PrimitiveVariable *timeOffsetPrimVar = findVertexVariable( primitive.get(), timeOffsetPlug()->namePlug()->getValue() );
+				if( timeOffsetPrimVar &&
+					timeOffsetPrimVar->data->typeId() != FloatVectorDataTypeId &&
+					timeOffsetPrimVar->data->typeId() != IntVectorDataTypeId
+				)
+				{
+					// \todo : Are we really OK with silently ignoring primvars of the wrong type?
+					// This feels very confusing to users, but matches other behaviour in Instancer
+					timeOffsetPrimVar = nullptr;
+				}
+
+				float quantize = IECore::runTimeCast< const FloatPlug >( timeOffsetPlug()->quantizePlug() )->getValue();
+				prototypeContextVariables.push_back( { "frame", timeOffsetPrimVar, quantize, true, false, 0, 0 } );
+			}
+		}
+
 		static_cast<ObjectPlug *>( output )->setValue(
 			new EngineData(
-				inPlug()->objectPlug()->getValue(),
+				primitive,
 				mode,
 				prototypeIndexPlug()->getValue(),
 				prototypeRootsPlug()->getValue(),
@@ -806,7 +1445,8 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 				orientationPlug()->getValue(),
 				scalePlug()->getValue(),
 				attributesPlug()->getValue(),
-				attributePrefixPlug()->getValue()
+				attributePrefixPlug()->getValue(),
+				prototypeContextVariables
 			)
 		);
 		return;
@@ -857,8 +1497,125 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 		static_cast<AtomicCompoundDataPlug *>( output )->setValue( result );
 		return;
 	}
+	else if( output == variationsPlug() )
+	{
+		// Compute the number of variations by accumulating massive lists of unique hashes from all EngineDatas
+		// and then counting the total number of uniques
+
+		tbb::spin_mutex locationMutex;
+		std::vector< std::shared_ptr< EngineData::PrototypeHashes > > perLocationHashes;
+		std::shared_ptr< std::vector< InternedString > > contextVariableNames;
+		struct HashSetAccum
+		{
+			HashSetAccum(
+				const ObjectPlug *enginePlug,
+				tbb::spin_mutex &locationMutex,
+				std::vector< std::shared_ptr< EngineData::PrototypeHashes > > &perLocationHashes,
+				std::shared_ptr< std::vector< InternedString > > &contextVariableNames
+			):
+				m_enginePlug( enginePlug ), m_locationMutex( locationMutex ),
+				m_perLocationHashes( perLocationHashes ), m_contextVariableNames( contextVariableNames )
+			{
+			}
+			bool operator()( const GafferScene::ScenePlug *scene, const GafferScene::ScenePlug::ScenePath &path )
+			{
+				ConstEngineDataPtr engine = boost::static_pointer_cast<const EngineData>( m_enginePlug->getValue() );
+				std::shared_ptr< EngineData::PrototypeHashes > locationHashes = engine->uniquePrototypeHashes();
+
+				tbb::spin_mutex::scoped_lock lock( m_locationMutex );
+				m_perLocationHashes.push_back( locationHashes );
+				if( !m_contextVariableNames )
+				{
+					// The context variable names are guaranteed to match for all EngineData, so we just
+					// grab them from the first EngineData we process
+					m_contextVariableNames = std::shared_ptr< std::vector< InternedString > >( new std::vector< InternedString >( engine->contextVariableNames() ) );
+				}
+				return true;
+			}
+		private:
+			const ObjectPlug *m_enginePlug;
+			tbb::spin_mutex &m_locationMutex;
+			std::vector< std::shared_ptr< EngineData::PrototypeHashes > > &m_perLocationHashes;
+			std::shared_ptr< std::vector< InternedString > > &m_contextVariableNames;
+		};
+
+		HashSetAccum a( enginePlug(), locationMutex, perLocationHashes, contextVariableNames );
+		GafferScene::SceneAlgo::filteredParallelTraverse( inPlug(), filterPlug(), a );
+
+		std::vector< int > numUnique;
+		std::vector< InternedString > outputNames;
+		if( perLocationHashes.size() == 0 )
+		{
+			numUnique.push_back( 0 );
+		}
+		else
+		{
+			numUnique.reserve( perLocationHashes[0]->size() );
+
+			outputNames = *contextVariableNames;
+			if( perLocationHashes.size() == 1 )
+			{
+				// We only have one location, so we can just output the sizes of the hash sets
+				// we got
+				for( const auto &hs : *perLocationHashes[0] )
+				{
+					numUnique.push_back( hs.size() );
+				}
+			}
+			else
+			{
+				// For multiple locations, we need to merge the hash sets into a single giant set,
+				// and then check its size.  This seems very expensive, but we only do this when
+				// users are using the Context Variation tab, and need a display of how many
+				// variations they are creating.  This plug isn't evaluated at render time.
+				EngineData::PrototypeHashes combine( *perLocationHashes[0] );
+				for( unsigned int i = 1; i < perLocationHashes.size(); i++ )
+				{
+					for( unsigned int j = 0; j < perLocationHashes[0]->size(); j++ )
+					{
+						combine[j].merge( (*perLocationHashes[i])[j] );
+					}
+				}
+				for( const auto &hs : combine )
+				{
+					numUnique.push_back( hs.size() );
+				}
+			}
+		}
+
+		// The first entries correspond to the context variable names, the last entry is always the total,
+		// which we output as ""
+		outputNames.push_back( "" );
+
+		CompoundDataPtr result = new CompoundData;
+		for( unsigned int i = 0; i < outputNames.size(); i++ )
+		{
+			result->writable()[ outputNames[i] ] = new IntData( numUnique[i] );
+		}
+
+		static_cast<AtomicCompoundDataPlug *>( output )->setValue( result );
+		return;
+	}
 
 	BranchCreator::compute( output, context );
+}
+
+Gaffer::ValuePlug::CachePolicy Instancer::computeCachePolicy( const Gaffer::ValuePlug *output ) const
+{
+	if( output == variationsPlug() )
+	{
+		return ValuePlug::CachePolicy::TaskCollaboration;
+	}
+	return BranchCreator::computeCachePolicy( output );
+}
+
+Gaffer::ValuePlug::CachePolicy Instancer::hashCachePolicy( const Gaffer::ValuePlug *output ) const
+{
+	if( output == variationsPlug() )
+	{
+		return ValuePlug::CachePolicy::TaskCollaboration;
+	}
+	return BranchCreator::hashCachePolicy( output );
 }
 
 bool Instancer::affectsBranchBound( const Gaffer::Plug *input ) const
@@ -1435,6 +2192,12 @@ Instancer::PrototypeScope::PrototypeScope( const Gaffer::ObjectPlug *enginePlug,
 	set( ScenePlug::scenePathContextName, parentPath );
 	ConstEngineDataPtr engine = boost::static_pointer_cast<const EngineData>( enginePlug->getValue() );
 	const ScenePlug::ScenePath &prototypeRoot = engine->prototypeRoot( branchPath[1] );
+
+	if( branchPath.size() >= 3 && engine->hasContextVariables() )
+	{
+		const size_t pointIndex = engine->pointIndex( branchPath[2] );
+		engine->fillPrototypeContext( pointIndex, *m_context );
+	}
 
 	if( branchPath.size() > 3 )
 	{
