@@ -254,7 +254,7 @@ class GAFFER_API Context : public IECore::RefCounted
 
 				const Context *context() const { return m_context.get(); }
 
-			protected :
+			private :
 
 				Ptr m_context;
 
