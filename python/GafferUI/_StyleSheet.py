@@ -71,6 +71,7 @@ _styleColors = {
 	"backgroundDarkHighlight" : (62, 62, 62),
 
 	"backgroundLowlight" : (56, 56, 56),
+	"backgroundMidLowlight" : (61, 61, 61),
 	"background" : (66, 66, 66),
 	"backgroundAlt" : (60, 60, 60),
 	"backgroundHighlight" : (76, 76, 76),
@@ -1419,17 +1420,16 @@ _styleSheet = string.Template(
 		margin-right: $toolOverlayInset;
 	}
 
-	*[gafferClass="GafferSceneUI.InstancerUI._VariationsPlugValueWidget"] QLabel
+	*[gafferClass="GafferSceneUI.InstancerUI._VariationsPlugValueWidget"] #gafferVariationCount
 	{
 		font-family: $monospaceFontFamily;
-		font-weight: bold;
-		font-size : 12pt;
-		color: rgb( 0, 0, 0 );
-	}
-
-	*[gafferClass="GafferSceneUI.InstancerUI._VariationsPlugValueWidget"] QFrame
-	{
-		background: rgb( 125, 125, 125 );
+		font-weight:bold;
+		font-size: 11px;
+		background: $background;
+		border: 1px solid $background;
+		border-top-color: $backgroundMidLowlight;
+		border-left-color: $backgroundMidLowlight;
+		border-radius: 6px;
 	}
 
 	/* Corner Rounding - also allow squaring based on adjacency of other widgets */

@@ -160,7 +160,7 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 	# display any one of these counts - which to display is selected by the "contextName" argument,
 	# which can be either a string literal, or a String plug which will be evaluated to find the
 	# name to access within the variations plug output
-	def __init__( self, plug, contextName = "", **kw ) :
+	def __init__( self, plug, contextName = "", label="", **kw ) :
 
 		l = GafferUI.ListContainer( GafferUI.ListContainer.Orientation.Horizontal, spacing = 4 )
 
@@ -175,14 +175,14 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 			self.contextNamePlug = None
 
 		with l :
-			l.addChild( GafferUI.Frame( borderWidth = 0, borderStyle = GafferUI.Frame.BorderStyle.None_ ), expand=True )
-			with l[0]:
+			GafferUI.Spacer( imath.V2i( 0 ), preferredSize = imath.V2i( 0 ) )
+			if label :
+				GafferUI.Label( "<h4>%s</h4>" % label )
+			with GafferUI.ListContainer( GafferUI.ListContainer.Orientation.Horizontal, spacing = 2, borderWidth = 3 ) as h :
+				h._qtWidget().setObjectName( "gafferVariationCount" )
+				self.__busyWidget = GafferUI.BusyWidget( size = 14 )
 				self.__countLabel = GafferUI.Label( horizontalAlignment = GafferUI.HorizontalAlignment.Right )
 				self.__countLabel._qtWidget().setMinimumWidth( 90 )
-
-				if self.contextName == "":
-					self.__countLabel._qtWidget().setMaximumWidth( 999999 )
-			self.__busyWidget = GafferUI.BusyWidget( size = 20 )
 
 		self.__updateLabel( -1 )
 		self._updateFromPlug()
@@ -191,6 +191,9 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 		# VariationsPlugValueWidget is a special widget that requires both the plug and contextName
 		# to be set in the constructor.  Does not support setPlugs.
 		raise NotImplementedError
+
+	def hasLabel( self ) :
+		return True
 
 	def __namePlugDirtied( self, plug ) :
 
@@ -263,15 +266,12 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 
 	def __updateLabel( self, count ) :
 
-		r = str( count )
-		if self.contextName == "":
-			r = "<h1>" + r + "</h1>"
-		self.__countLabel.setText( r + " " if count >= 0 else " " )
+		self.__countLabel.setText( str(count) + " " if count >= 0 else " " )
 
 def _variationsPlugValueWidgetWidth() :
-	# Approximate size of _VariationsPlugValueWidget - I guess this is 90 for the frame, plus 20 for
+	# Size of the visible part of the _VariationsPlugValueWidget
 	# the busy widget, plus a couple of border widths
-	return 118
+	return 112
 
 class _ColumnHeadings( GafferUI.ListContainer ):
 
@@ -300,9 +300,9 @@ _SeedColumnHeadings = lambda node : _ColumnHeadings( ["Seed", "", "Variations"],
 
 _TimeOffsetColumnHeadings = lambda node : _ColumnHeadings( [ "Time Offset", "Quantize", "Variations" ] )
 _SectionSpacer1 = lambda node : GafferUI.Spacer( imath.V2i( 1, 5 ), imath.V2i( 1, 5 ) )
-_SectionSpacer2 = lambda node : GafferUI.Spacer( imath.V2i( 1, 15 ), imath.V2i( 1, 15 ) )
 _SeedCountSpacer = lambda node : GafferUI.Spacer( imath.V2i( 0 ), imath.V2i( 999999, 0 ) )
 _SeedCountWidget = lambda node : _VariationsPlugValueWidget( node["variations"], node["seedVariable"] )
+_TotalCountWidget = lambda plug : _VariationsPlugValueWidget( plug, "", label = "Total" )
 
 _TimeOffsetContextVariableWidget = lambda plug : _ContextVariableWidget( plug, overrideName = "frame" )
 
@@ -371,9 +371,14 @@ Gaffer.Metadata.registerNode(
 	"layout:customWidget:timeOffsetHeadings:index", 24,
 	"layout:customWidget:timeOffsetHeadings:description", "Testing description",
 
-	"layout:customWidget:timeOffsetSpacer:widgetType", "GafferSceneUI.InstancerUI._SectionSpacer2",
+	"layout:customWidget:timeOffsetSpacer:widgetType", "GafferSceneUI.InstancerUI._SectionSpacer1",
 	"layout:customWidget:timeOffsetSpacer:section", "Context Variations",
 	"layout:customWidget:timeOffsetSpacer:index", 25,
+	"layout:customWidget:timeOffsetSpacer:divider", True,
+
+	"layout:customWidget:totalSpacer:widgetType", "GafferSceneUI.InstancerUI._SectionSpacer1",
+	"layout:customWidget:totalSpacer:section", "Context Variations",
+	"layout:customWidget:totalSpacer:index", 26,
 
 	plugs = {
 
@@ -752,7 +757,8 @@ Gaffer.Metadata.registerNode(
 			""",
 			"label", "Total Variations",
 			"layout:section", "Context Variations",
-			"plugValueWidget:type", "GafferSceneUI.InstancerUI._VariationsPlugValueWidget",
+			"layout:index", 27,
+			"plugValueWidget:type", "GafferSceneUI.InstancerUI._TotalCountWidget",
 		],
 	}
 
