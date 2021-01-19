@@ -40,8 +40,6 @@
 
 #include "GafferScene/BranchCreator.h"
 
-#include "Gaffer/CompoundDataPlug.h"
-
 namespace GafferScene
 {
 
@@ -86,15 +84,6 @@ class GAFFERSCENE_API Instancer : public BranchCreator
 		};
 
 		IE_CORE_DECLAREPTR( ContextVariablePlug );
-
-		typedef Gaffer::FilteredChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Invalid, ContextVariablePlug> > ContextVariablePlugIterator;
-		typedef Gaffer::FilteredChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::In, ContextVariablePlug> > InputContextVariablePlugIterator;
-		typedef Gaffer::FilteredChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Out, ContextVariablePlug> > OutputContextVariablePlugIterator;
-
-		typedef Gaffer::FilteredRecursiveChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Invalid, ContextVariablePlug>, Gaffer::PlugPredicate<> > RecursiveContextVariablePlugIterator;
-		typedef Gaffer::FilteredRecursiveChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::In, ContextVariablePlug>, Gaffer::PlugPredicate<> > RecursiveInputContextVariablePlugIterator;
-		typedef Gaffer::FilteredRecursiveChildIterator<Gaffer::PlugPredicate<Gaffer::Plug::Out, ContextVariablePlug>, Gaffer::PlugPredicate<> > RecursiveOutputContextVariablePlugIterator;
-
 
 		Instancer( const std::string &name=defaultName<Instancer>() );
 		~Instancer() override;
@@ -147,20 +136,20 @@ class GAFFERSCENE_API Instancer : public BranchCreator
 		Gaffer::BoolPlug *encapsulateInstanceGroupsPlug();
 		const Gaffer::BoolPlug *encapsulateInstanceGroupsPlug() const;
 
-		Gaffer::BoolPlug *generateSeedsPlug();
-		const Gaffer::BoolPlug *generateSeedsPlug() const;
+		Gaffer::BoolPlug *seedEnablePlug();
+		const Gaffer::BoolPlug *seedEnablePlug() const;
 
 		Gaffer::StringPlug *seedVariablePlug();
 		const Gaffer::StringPlug *seedVariablePlug() const;
 
-		Gaffer::IntPlug *numSeedsPlug();
-		const Gaffer::IntPlug *numSeedsPlug() const;
+		Gaffer::IntPlug *seedPossibilitiesPlug();
+		const Gaffer::IntPlug *seedPossibilitiesPlug() const;
 
-		Gaffer::IntPlug *seedsScramblePlug();
-		const Gaffer::IntPlug *seedsScramblePlug() const;
+		Gaffer::IntPlug *seedPermutationPlug();
+		const Gaffer::IntPlug *seedPermutationPlug() const;
 
-		Gaffer::BoolPlug *seedsPassthroughAllIdsPlug();
-		const Gaffer::BoolPlug *seedsPassthroughAllIdsPlug() const;
+		Gaffer::BoolPlug *rawSeedPlug();
+		const Gaffer::BoolPlug *rawSeedPlug() const;
 
 		Gaffer::ValuePlug *contextVariablesPlug();
 		const Gaffer::ValuePlug *contextVariablesPlug() const;

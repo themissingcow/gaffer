@@ -1694,39 +1694,32 @@ class InstancerTest( GafferSceneTest.SceneTestCase ) :
 		points["color4fVar"] = IECoreScene.PrimitiveVariable( IECoreScene.PrimitiveVariable.Interpolation.Vertex, IECore.Color4fVectorData(
 						[ imath.Color4f( i * 0.1 + 2, i * 0.1 + 3, i * 0.1 + 4, i * 0.1 + 5 ) for i in range( 100 ) ]
 					) )
-		pointsSource = GafferSceneTest.CompoundObjectSource()
-		pointsSource["in"].setValue(
-			IECore.CompoundObject( {
-				"bound" : IECore.Box3fData( points.bound() ),
-				"children" : {
-					"points" : {
-						"bound" : IECore.Box3fData( points.bound() ),
-						"transform" : IECore.M44fData( imath.M44f() ),
-						"object" : points,
-					},
-				},
-			}, )
-		)
+		pointsSource = GafferScene.ObjectToScene()
+		pointsSource["name"].setValue( "points" )
+		pointsSource["object"].setValue( points )
 
-		AttributeSphere = GafferScene.Sphere()
+		attributeSphere = GafferScene.Sphere()
 
-		SphereFilter = GafferScene.PathFilter()
-		SphereFilter["paths"].setValue( IECore.StringVectorData( [ '/sphere' ] ) )
+		sphereFilter = GafferScene.PathFilter()
+		sphereFilter["paths"].setValue( IECore.StringVectorData( [ '/sphere' ] ) )
 
-		CustomAttributes = GafferScene.CustomAttributes()
-		CustomAttributes["in"].setInput( AttributeSphere["out"] )
-		CustomAttributes["filter"].setInput( SphereFilter["out"] )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "floatAttr", Gaffer.FloatPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member1" ) )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "vectorAttr", Gaffer.V3fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member2" ) )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "uvAttr", Gaffer.V2fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member3" ) )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "intAttr", Gaffer.IntPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic, ), True, "member4" ) )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "colorAttr", Gaffer.Color3fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member5" ) )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "color4fAttr", Gaffer.Color4fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member6" ) )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "seedAttr", Gaffer.IntPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic, ), True, "member7" ) )
-		CustomAttributes["attributes"].addChild( Gaffer.NameValuePlug( "frameAttr", Gaffer.FloatPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic, ), True, "member8" ) )
+		# In any practical situation where we just needed to set up attributes, we could use the "attributes"
+		# plug to set them up more cheaply.  But for testing, setting up attributes is simpler than any realistic
+		# test
+		customAttributes = GafferScene.CustomAttributes()
+		customAttributes["in"].setInput( attributeSphere["out"] )
+		customAttributes["filter"].setInput( sphereFilter["out"] )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "floatAttr", Gaffer.FloatPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member1" ) )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "vectorAttr", Gaffer.V3fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member2" ) )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "uvAttr", Gaffer.V2fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member3" ) )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "intAttr", Gaffer.IntPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic, ), True, "member4" ) )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "colorAttr", Gaffer.Color3fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member5" ) )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "color4fAttr", Gaffer.Color4fPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic ), True, "member6" ) )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "seedAttr", Gaffer.IntPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic, ), True, "member7" ) )
+		customAttributes["attributes"].addChild( Gaffer.NameValuePlug( "frameAttr", Gaffer.FloatPlug( "value", flags = Gaffer.Plug.Flags.Default | Gaffer.Plug.Flags.Dynamic, ), True, "member8" ) )
 
-		CustomAttributes["ReadContextExpression"] = Gaffer.Expression()
-		CustomAttributes["ReadContextExpression"].setExpression( inspect.cleandoc(
+		customAttributes["ReadContextExpression"] = Gaffer.Expression()
+		customAttributes["ReadContextExpression"].setExpression( inspect.cleandoc(
 			"""
 			parent["attributes"]["member1"]["value"] = context.get( "floatVar", -1 )
 			parent["attributes"]["member2"]["value"] = context.get( "vectorVar", imath.V3f(-1) )
@@ -1739,37 +1732,37 @@ class InstancerTest( GafferSceneTest.SceneTestCase ) :
 			"""
 		) )
 
-		Group = GafferScene.Group()
-		Group["in"][0].setInput( CustomAttributes["out"] )
-		Group["name"].setValue( 'withAttrs' )
+		group = GafferScene.Group()
+		group["in"][0].setInput( customAttributes["out"] )
+		group["name"].setValue( 'withAttrs' )
 
-		Cube = GafferScene.Cube()
-		Plane = GafferScene.Plane()
-		Sphere = GafferScene.Sphere()
+		cube = GafferScene.Cube()
+		plane = GafferScene.Plane()
+		sphere = GafferScene.Sphere()
 
-		Parent = GafferScene.Parent()
-		Parent["parent"].setValue( '/' )
-		Parent["in"].setInput( Group["out"] )
-		Parent["children"][0].setInput( Cube["out"] )
-		Parent["children"][1].setInput( Plane["out"] )
-		Parent["children"][2].setInput( Sphere["out"] )
+		parent = GafferScene.Parent()
+		parent["parent"].setValue( '/' )
+		parent["in"].setInput( group["out"] )
+		parent["children"][0].setInput( cube["out"] )
+		parent["children"][1].setInput( plane["out"] )
+		parent["children"][2].setInput( sphere["out"] )
 
-		PointsFilter = GafferScene.PathFilter()
-		PointsFilter["paths"].setValue( IECore.StringVectorData( [ '/points' ] ) )
+		pointsFilter = GafferScene.PathFilter()
+		pointsFilter["paths"].setValue( IECore.StringVectorData( [ '/points' ] ) )
 
-		Instancer = GafferScene.Instancer( "Instancer" )
-		Instancer["in"].setInput( pointsSource["out"] )
-		Instancer["filter"].setInput( PointsFilter["out"] )
-		Instancer["prototypes"].setInput( Parent["out"] )
+		instancer = GafferScene.Instancer()
+		instancer["in"].setInput( pointsSource["out"] )
+		instancer["filter"].setInput( pointsFilter["out"] )
+		instancer["prototypes"].setInput( parent["out"] )
 
 		def uniqueCounts():
-			return dict( [ (i[0], i[1].value) for i in Instancer["variations"].getValue().items() ] )
+			return dict( [ (i[0], i[1].value) for i in instancer["variations"].getValue().items() ] )
 
 		def childNameStrings( location ):
-			return [ i.value() for i in Instancer['out'].childNames( location ) ]
+			return [ i.value() for i in instancer['out'].childNames( location ) ]
 
 		def testAttributes( **expected ):
-			a = [ Instancer['out'].attributes( "points/instances/withAttrs/" + i.value() + "/sphere" ) for i in Instancer['out'].childNames( "points/instances/withAttrs" ) ]
+			a = [ instancer['out'].attributes( "points/instances/withAttrs/" + i.value() + "/sphere" ) for i in instancer['out'].childNames( "points/instances/withAttrs" ) ]
 			r = {}
 			for n in a[0].keys():
 				r = [ i[n].value for i in a]
@@ -1796,7 +1789,7 @@ class InstancerTest( GafferSceneTest.SceneTestCase ) :
 		self.assertEqual( childNameStrings( "points/instances/plane" ), [] )
 		self.assertEqual( childNameStrings( "points/instances/sphere" ), [] )
 
-		Instancer["prototypeIndex"].setValue( 'intVar' )
+		instancer["prototypeIndex"].setValue( 'intVar' )
 
 		self.assertEqual( uniqueCounts(), { "" : 4 } )
 		self.assertEqual( childNameStrings( "points/instances/withAttrs" ), [ str(i) for i in range( 0, 100, 4 ) ] )
@@ -1807,9 +1800,9 @@ class InstancerTest( GafferSceneTest.SceneTestCase ) :
 		# No context overrides yet
 		testAttributes( frameAttr = [ 1 ] * 25 )
 
-		Instancer["contextVariables"].addChild( GafferScene.Instancer.ContextVariablePlug( "context" ) )
-		Instancer["contextVariables"][0]["name"].setValue( "floatVar" )
-		Instancer["contextVariables"][0]["quantize"].setValue( 0 )
+		instancer["contextVariables"].addChild( GafferScene.Instancer.ContextVariablePlug( "context" ) )
+		instancer["contextVariables"][0]["name"].setValue( "floatVar" )
+		instancer["contextVariables"][0]["quantize"].setValue( 0 )
 
 		# With zero quantization, everything is now unique
 		testAttributes( frameAttr = [ 1 ] * 25, floatAttr = [ 2 * math.sin( i ) for i in range(0, 100, 4) ] )
@@ -1817,128 +1810,128 @@ class InstancerTest( GafferSceneTest.SceneTestCase ) :
 		self.assertEqual( uniqueCounts(), { "" : 100, "floatVar" : 100 } )
 
 		# With massive quantization, all values collapse
-		Instancer["contextVariables"][0]["quantize"].setValue( 100 )
+		instancer["contextVariables"][0]["quantize"].setValue( 100 )
 		testAttributes( frameAttr = [ 1 ] * 25, floatAttr = [ 0 for i in range(0, 100, 4) ] )
 		self.assertEqual( uniqueCounts(), { "" : 4, "floatVar" : 1 } )
 
 		# With moderate quantization, we can see how different prototypes combine with the contexts to produce
 		# more unique values
-		Instancer["contextVariables"][0]["quantize"].setValue( 1 )
+		instancer["contextVariables"][0]["quantize"].setValue( 1 )
 		floatExpected = [ round( 2 * math.sin( i ) ) for i in range(0, 100, 4) ]
 		testAttributes( frameAttr = [ 1 ] * 25, floatAttr = floatExpected )
 		self.assertEqual( uniqueCounts(), { "" : 20, "floatVar" : 5 } )
 
 		# Now lets just focus on context variation
-		Instancer["prototypeIndex"].setValue( '' )
+		instancer["prototypeIndex"].setValue( '' )
 		floatExpected = [ round( 2 * math.sin( i ) ) for i in range(0, 100) ]
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected )
 		self.assertEqual( uniqueCounts(), { "" : 5, "floatVar" : 5 } )
 
 		# Add a second context variation
-		Instancer["contextVariables"].addChild( GafferScene.Instancer.ContextVariablePlug( "context" ) )
-		Instancer["contextVariables"][1]["name"].setValue( "vectorVar" )
-		Instancer["contextVariables"][1]["quantize"].setValue( 0 )
+		instancer["contextVariables"].addChild( GafferScene.Instancer.ContextVariablePlug( "context" ) )
+		instancer["contextVariables"][1]["name"].setValue( "vectorVar" )
+		instancer["contextVariables"][1]["quantize"].setValue( 0 )
 
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			vectorAttr = [ imath.V3f( i + 2, i + 3, i + 4 ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "vectorVar" : 100, "" : 100 } )
 
-		Instancer["contextVariables"][1]["quantize"].setValue( 10 )
+		instancer["contextVariables"][1]["quantize"].setValue( 10 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			vectorAttr = [ imath.V3f( quant( i + 2, 10 ), quant( i + 3, 10 ), quant( i + 4, 10 ) ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "vectorVar" : 31, "" : 64 } )
 
 		# Try all the different types
-		Instancer["contextVariables"][1]["name"].setValue( "uvVar" )
-		Instancer["contextVariables"][1]["quantize"].setValue( 0 )
+		instancer["contextVariables"][1]["name"].setValue( "uvVar" )
+		instancer["contextVariables"][1]["quantize"].setValue( 0 )
 
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			uvAttr = [ imath.V2f( i * 0.01, i * 0.02 ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "uvVar" : 100, "" : 100 } )
 
-		Instancer["contextVariables"][1]["quantize"].setValue( 1 )
+		instancer["contextVariables"][1]["quantize"].setValue( 1 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			uvAttr = [ imath.V2f( round( i * 0.01 ), round( i * 0.02 ) ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "uvVar" : 4, "" : 20 } )
 
 
-		Instancer["contextVariables"][1]["name"].setValue( "intVar" )
-		Instancer["contextVariables"][1]["quantize"].setValue( 0 )
+		instancer["contextVariables"][1]["name"].setValue( "intVar" )
+		instancer["contextVariables"][1]["quantize"].setValue( 0 )
 
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			intAttr = [ i for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "intVar" : 100, "" : 100 } )
 
-		Instancer["contextVariables"][1]["quantize"].setValue( 10 )
+		instancer["contextVariables"][1]["quantize"].setValue( 10 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			intAttr = [ quant( i, 10 ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "intVar" : 11, "" : 48 } )
 
-		Instancer["contextVariables"][1]["name"].setValue( "colorVar" )
-		Instancer["contextVariables"][1]["quantize"].setValue( 0 )
+		instancer["contextVariables"][1]["name"].setValue( "colorVar" )
+		instancer["contextVariables"][1]["quantize"].setValue( 0 )
 
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			colorAttr = [ imath.Color3f( i * 0.1 + 2, i * 0.1 + 3, i * 0.1 + 4 ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "colorVar" : 100, "" : 100 } )
 
-		Instancer["contextVariables"][1]["quantize"].setValue( 1 )
+		instancer["contextVariables"][1]["quantize"].setValue( 1 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			colorAttr = [ imath.Color3f( round( i * 0.1 + 2 ), round( i * 0.1 + 3 ), round( i * 0.1 + 4 ) ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "colorVar" : 11, "" : 48 } )
 
-		Instancer["contextVariables"][1]["name"].setValue( "color4fVar" )
-		Instancer["contextVariables"][1]["quantize"].setValue( 0 )
+		instancer["contextVariables"][1]["name"].setValue( "color4fVar" )
+		instancer["contextVariables"][1]["quantize"].setValue( 0 )
 
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			color4fAttr = [ imath.Color4f( i * 0.1 + 2, i * 0.1 + 3, i * 0.1 + 4, i * 0.1 + 5 ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 100, "" : 100 } )
 
-		Instancer["contextVariables"][1]["quantize"].setValue( 1 )
+		instancer["contextVariables"][1]["quantize"].setValue( 1 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected,
 			color4fAttr = [ imath.Color4f( round( i * 0.1 + 2 ), round( i * 0.1 + 3 ), round( i * 0.1 + 4 ), round( i * 0.1 + 5 ) ) for i in range(0, 100) ] )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 11, "" : 48 } )
 
 		# Set a high quantize so we can see how these variations interact with other types of variations
-		Instancer["contextVariables"][1]["quantize"].setValue( 10 )
+		instancer["contextVariables"][1]["quantize"].setValue( 10 )
 		color4fExpected = [ imath.Color4f( quant( i * 0.1 + 2, 10 ), quant( i * 0.1 + 3, 10 ), quant( i * 0.1 + 4, 10 ), quant( i * 0.1 + 5, 10 ) ) for i in range(0, 100) ]
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected, color4fAttr = color4fExpected )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "" : 20 } )
 
-		Instancer["generateSeeds"].setValue( True )
-		Instancer["seedsPassthroughAllIds"].setValue( True )
+		instancer["seedEnable"].setValue( True )
+		instancer["rawSeed"].setValue( True )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected, color4fAttr = color4fExpected, seedAttr = range( 100 ) )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 100, "" : 100 } )
 
-		Instancer["seedsPassthroughAllIds"].setValue( False )
-		Instancer["numSeeds"].setValue( 10 )
+		instancer["rawSeed"].setValue( False )
+		instancer["seedPossibilities"].setValue( 10 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected, color4fAttr = color4fExpected, seedAttr_seedCount = 10 )
-		initialFirstVal = Instancer['out'].attributes( '/points/instances/withAttrs/0/sphere' )["seedAttr"]
+		initialFirstVal = instancer['out'].attributes( '/points/instances/withAttrs/0/sphere' )["seedAttr"]
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 10, "" : 67 } )
 
 		# Changing the seed changes individual values, but not the overall behaviour
-		Instancer["seedsScramble"].setValue( 1 )
+		instancer["seedPermutation"].setValue( 1 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected, color4fAttr = color4fExpected, seedAttr_seedCount = 10 )
-		self.assertNotEqual( initialFirstVal, Instancer['out'].attributes( '/points/instances/withAttrs/0/sphere' )["seedAttr"] )
+		self.assertNotEqual( initialFirstVal, instancer['out'].attributes( '/points/instances/withAttrs/0/sphere' )["seedAttr"] )
 		# Total variation count is a bit different because the different variation sources line up differently
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 10, "" : 69 } )
 
 		# If we generate 100 seeds from 100 ids, we will get many collisions, and only 67 unique values
-		Instancer["numSeeds"].setValue( 100 )
+		instancer["seedPossibilities"].setValue( 100 )
 		testAttributes( frameAttr = [ 1 ] * 100, floatAttr = floatExpected, color4fAttr = color4fExpected, seedAttr_seedCount = 67 )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 67, "" : 94 } )
 
 		# Now turn on time offset as well and play with everything together
-		Instancer["numSeeds"].setValue( 10 )
-		Instancer["timeOffset"]["enabled"].setValue( True )
-		Instancer["timeOffset"]["name"].setValue( 'floatVar' )
-		Instancer["timeOffset"]["quantize"].setValue( 0.0 )
+		instancer["seedPossibilities"].setValue( 10 )
+		instancer["timeOffset"]["enabled"].setValue( True )
+		instancer["timeOffset"]["name"].setValue( 'floatVar' )
+		instancer["timeOffset"]["quantize"].setValue( 0.0 )
 		testAttributes( frameAttr = [ 1 + 2 * math.sin( i ) for i in range(0, 100) ], floatAttr = floatExpected, color4fAttr = color4fExpected, seedAttr_seedCount = 10 )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 10, "frame" : 100, "" : 100 } )
 
-		Instancer["timeOffset"]["quantize"].setValue( 0.5 )
+		instancer["timeOffset"]["quantize"].setValue( 0.5 )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 10, "frame" : 9, "" : 82 } )
 
-		Instancer["timeOffset"]["quantize"].setValue( 1 )
+		instancer["timeOffset"]["quantize"].setValue( 1 )
 		testAttributes( frameAttr = [ i + 1 for i in floatExpected ], floatAttr = floatExpected, color4fAttr = color4fExpected, seedAttr_seedCount = 10 )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 10, "frame" : 5, "" : 69 } )
 		c = Gaffer.Context()
@@ -1948,23 +1941,23 @@ class InstancerTest( GafferSceneTest.SceneTestCase ) :
 			self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "seed" : 10, "frame" : 5, "" : 69 } )
 
 		# Now reduce back down the variations to test different cumulative combinations
-		Instancer["generateSeeds"].setValue( False )
+		instancer["seedEnable"].setValue( False )
 		testAttributes( frameAttr = [ i + 1 for i in floatExpected ], floatAttr = floatExpected, color4fAttr = color4fExpected )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "color4fVar" : 4, "frame" : 5, "" : 20 } )
 
 		# With just one context var, driven by the same prim var as frame, with the same quantization,
 		# the variations don't multiply
-		del Instancer["contextVariables"][1]
+		del instancer["contextVariables"][1]
 		testAttributes( frameAttr = [ i + 1 for i in floatExpected ], floatAttr = floatExpected )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "frame" : 5, "" : 5 } )
 
 		# Using a different source primVar means the variations will multiply
-		Instancer["timeOffset"]["name"].setValue( 'intVar' )
-		Instancer["timeOffset"]["quantize"].setValue( 0 )
+		instancer["timeOffset"]["name"].setValue( 'intVar' )
+		instancer["timeOffset"]["quantize"].setValue( 0 )
 		testAttributes( frameAttr = [ i + 1 for i in range(100) ], floatAttr = floatExpected )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "frame" : 100, "" : 100 } )
 
-		Instancer["timeOffset"]["quantize"].setValue( 20 )
+		instancer["timeOffset"]["quantize"].setValue( 20 )
 		testAttributes( frameAttr = [ ((i+10)/20)*20 + 1 for i in range(100) ], floatAttr = floatExpected )
 		self.assertEqual( uniqueCounts(), { "floatVar" : 5, "frame" : 6, "" : 30 } )
 

@@ -852,7 +852,7 @@ bool Instancer::ContextVariablePlug::acceptsChild( const GraphComponent *potenti
 
 Gaffer::PlugPtr Instancer::ContextVariablePlug::createCounterpart( const std::string &name, Direction direction ) const
 {
-	return new Instancer::ContextVariablePlug( name, direction, getFlags() );
+	return new Instancer::ContextVariablePlug( name, direction, getFlags(), enabledPlug()->defaultValue() );
 }
 
 Gaffer::BoolPlug *Instancer::ContextVariablePlug::enabledPlug()
@@ -906,11 +906,11 @@ Instancer::Instancer( const std::string &name )
 	addChild( new StringPlug( "attributes", Plug::In ) );
 	addChild( new StringPlug( "attributePrefix", Plug::In ) );
 	addChild( new BoolPlug( "encapsulateInstanceGroups", Plug::In ) );
-	addChild( new BoolPlug( "generateSeeds", Plug::In ) );
+	addChild( new BoolPlug( "seedEnable", Plug::In ) );
 	addChild( new StringPlug( "seedVariable", Plug::In, "seed" ) );
-	addChild( new IntPlug( "numSeeds", Plug::In, 10, 1 ) );
-	addChild( new IntPlug( "seedsScramble", Plug::In ) );
-	addChild( new BoolPlug( "seedsPassthroughAllIds", Plug::In ) );
+	addChild( new IntPlug( "seedPossibilities", Plug::In, 10, 1 ) );
+	addChild( new IntPlug( "seedPermutation", Plug::In ) );
+	addChild( new BoolPlug( "rawSeed", Plug::In ) );
 	addChild( new ValuePlug( "contextVariables", Plug::In ) );
 	addChild( new ContextVariablePlug( "timeOffset", Plug::In, Plug::Flags::Default, false ) );
 	addChild( new AtomicCompoundDataPlug( "variations", Plug::Out, new CompoundData() ) );
@@ -1059,12 +1059,12 @@ const Gaffer::BoolPlug *Instancer::encapsulateInstanceGroupsPlug() const
 	return getChild<BoolPlug>( g_firstPlugIndex + 12 );
 }
 
-Gaffer::BoolPlug *Instancer::generateSeedsPlug()
+Gaffer::BoolPlug *Instancer::seedEnablePlug()
 {
 	return getChild<BoolPlug>( g_firstPlugIndex + 13 );
 }
 
-const Gaffer::BoolPlug *Instancer::generateSeedsPlug() const
+const Gaffer::BoolPlug *Instancer::seedEnablePlug() const
 {
 	return getChild<BoolPlug>( g_firstPlugIndex + 13 );
 }
@@ -1079,32 +1079,32 @@ const Gaffer::StringPlug *Instancer::seedVariablePlug() const
 	return getChild<StringPlug>( g_firstPlugIndex + 14 );
 }
 
-Gaffer::IntPlug *Instancer::numSeedsPlug()
+Gaffer::IntPlug *Instancer::seedPossibilitiesPlug()
 {
 	return getChild<IntPlug>( g_firstPlugIndex + 15 );
 }
 
-const Gaffer::IntPlug *Instancer::numSeedsPlug() const
+const Gaffer::IntPlug *Instancer::seedPossibilitiesPlug() const
 {
 	return getChild<IntPlug>( g_firstPlugIndex + 15 );
 }
 
-Gaffer::IntPlug *Instancer::seedsScramblePlug()
+Gaffer::IntPlug *Instancer::seedPermutationPlug()
 {
 	return getChild<IntPlug>( g_firstPlugIndex + 16 );
 }
 
-const Gaffer::IntPlug *Instancer::seedsScramblePlug() const
+const Gaffer::IntPlug *Instancer::seedPermutationPlug() const
 {
 	return getChild<IntPlug>( g_firstPlugIndex + 16 );
 }
 
-Gaffer::BoolPlug *Instancer::seedsPassthroughAllIdsPlug()
+Gaffer::BoolPlug *Instancer::rawSeedPlug()
 {
 	return getChild<BoolPlug>( g_firstPlugIndex + 17 );
 }
 
-const Gaffer::BoolPlug *Instancer::seedsPassthroughAllIdsPlug() const
+const Gaffer::BoolPlug *Instancer::rawSeedPlug() const
 {
 	return getChild<BoolPlug>( g_firstPlugIndex + 17 );
 }
@@ -1187,11 +1187,11 @@ void Instancer::affects( const Plug *input, AffectedPlugsContainer &outputs ) co
 		input == scalePlug() ||
 		input == attributesPlug() ||
 		input == attributePrefixPlug() ||
-		input == generateSeedsPlug() ||
+		input == seedEnablePlug() ||
 		input == seedVariablePlug() ||
-		input == numSeedsPlug() ||
-		input == seedsScramblePlug() ||
-		input == seedsPassthroughAllIdsPlug() ||
+		input == seedPossibilitiesPlug() ||
+		input == seedPermutationPlug() ||
+		input == rawSeedPlug() ||
 		timeOffsetPlug()->isAncestorOf( input ) ||
 		contextVariablesPlug()->isAncestorOf( input )
 	)
@@ -1262,13 +1262,13 @@ void Instancer::hash( const Gaffer::ValuePlug *output, const Gaffer::Context *co
 		attributesPlug()->hash( h );
 		attributePrefixPlug()->hash( h );
 
-		generateSeedsPlug()->hash( h );
+		seedEnablePlug()->hash( h );
 		seedVariablePlug()->hash( h );
-		numSeedsPlug()->hash( h );
-		seedsScramblePlug()->hash( h );
-		seedsPassthroughAllIdsPlug()->hash( h );
+		seedPossibilitiesPlug()->hash( h );
+		seedPermutationPlug()->hash( h );
+		rawSeedPlug()->hash( h );
 
-		for( ContextVariablePlugIterator it( contextVariablesPlug() ); !it.done(); ++it )
+		for( ContextVariablePlug::Iterator it( contextVariablesPlug() ); !it.done(); ++it )
 		{
 			const ContextVariablePlug *plug = it->get();
 			if( plug->enabledPlug()->getValue() )
@@ -1350,12 +1350,12 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 		{
 			bool timeOffsetEnabled = timeOffsetPlug()->enabledPlug()->getValue();
 			std::string seedContextName = "";
-			if( generateSeedsPlug()->getValue() )
+			if( seedEnablePlug()->getValue() )
 			{
 				seedContextName = seedVariablePlug()->getValue();
 			}
 
-			for( ContextVariablePlugIterator it( contextVariablesPlug() ); !it.done(); ++it )
+			for( ContextVariablePlug::Iterator it( contextVariablesPlug() ); !it.done(); ++it )
 			{
 				const ContextVariablePlug *plug = it->get();
 
@@ -1401,8 +1401,8 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 					idPrimVar = nullptr;
 				}
 
-				int seeds = seedsPassthroughAllIdsPlug()->getValue() ? 0 : numSeedsPlug()->getValue();
-				int seedScramble = seedsScramblePlug()->getValue();
+				int seeds = rawSeedPlug()->getValue() ? 0 : seedPossibilitiesPlug()->getValue();
+				int seedScramble = seedPermutationPlug()->getValue();
 				prototypeContextVariables.push_back( { seedContextName, idPrimVar, 0, false, true, seeds, seedScramble } );
 			}
 
@@ -1493,7 +1493,6 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 	{
 		// Compute the number of variations by accumulating massive lists of unique hashes from all EngineDatas
 		// and then counting the total number of uniques
-
 		tbb::spin_mutex locationMutex;
 		std::vector< std::shared_ptr< EngineData::PrototypeHashes > > perLocationHashes;
 		std::shared_ptr< std::vector< InternedString > > contextVariableNames;

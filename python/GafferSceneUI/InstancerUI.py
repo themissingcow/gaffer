@@ -156,8 +156,6 @@ GafferUI.PlugValueWidget.registerType( GafferScene.Instancer.ContextVariablePlug
 
 class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 
-	# TODO - is it necessary to implement setPlug for some corner case I'm not thinking about?
-
 	# The variations plug returns a count for each context variable, and a total.  This plug can
 	# display any one of these counts - which to display is selected by the "contextName" argument,
 	# which can be either a string literal, or a String plug which will be evaluated to find the
@@ -189,6 +187,11 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 		self.__updateLabel( -1 )
 		self._updateFromPlug()
 
+	def setPlugs( self, plugs ) :
+		# VariationsPlugValueWidget is a special widget that requires both the plug and contextName
+		# to be set in the constructor.  Does not support setPlugs.
+		raise NotImplementedError
+
 	def __namePlugDirtied( self, plug ) :
 
 		if plug == self.contextNamePlug :
@@ -207,7 +210,23 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 	@GafferUI.BackgroundMethod()
 	def __updateInBackground( self ) :
 
-		return self.getPlug().getValue()
+		resultDict = self.getPlug().getValue()
+
+		contextName = ""
+		if self.contextNamePlug:
+			contextName = self.contextNamePlug.getValue()
+
+			if contextName == "":
+				return -1
+		else:
+			contextName = self.contextName
+
+		if contextName in resultDict:
+			# Success. We have valid infomation to display.
+			return resultDict[contextName].value
+
+		# Could be that this variable is disabled
+		return -1
 
 	@__updateInBackground.preCall
 	def __updateInBackgroundPreCall( self ) :
@@ -223,7 +242,7 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 			# following :
 			#
 			# - This widget being hidden.
-			# - A graph edit that will affect the image and will have
+			# - A graph edit that will affect the result and will have
 			#   triggered a call to _updateFromPlug().
 			# - A graph edit that won't trigger a call to _updateFromPlug().
 			#
@@ -238,23 +257,7 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 			# in the UI.
 			self.__updateLabel( -1 )
 		else :
-			contextName = ""
-			if self.contextNamePlug:
-				contextName = self.contextNamePlug.getValue()
-
-				if contextName == "":
-					self.__updateLabel( -1 )
-					self.__busyWidget.setBusy( False )
-					return
-			else:
-				contextName = self.contextName
-
-			if contextName in backgroundResult:
-				# Success. We have valid infomation to display.
-				self.__updateLabel( backgroundResult[contextName].value )
-			else:
-				# Could be that this variable is disabled
-				self.__updateLabel( "" )
+			self.__updateLabel( backgroundResult )
 
 		self.__busyWidget.setBusy( False )
 
@@ -263,9 +266,9 @@ class _VariationsPlugValueWidget( GafferUI.PlugValueWidget ) :
 		r = str( count )
 		if self.contextName == "":
 			r = "<h1>" + r + "</h1>"
-		self.__countLabel.setText( r + " " if count >= 0 else "" )
+		self.__countLabel.setText( r + " " if count >= 0 else " " )
 
-def _VariationsPlugValueWidgetWidth() :
+def _variationsPlugValueWidgetWidth() :
 	# Approximate size of _VariationsPlugValueWidget - I guess this is 90 for the frame, plus 20 for
 	# the busy widget, plus a couple of border widths
 	return 118
@@ -278,55 +281,30 @@ class _ColumnHeadings( GafferUI.ListContainer ):
 			GafferUI.Label( "<h4><b>" + headings[0] + "</b></h4>", toolTip = toolTipOverride )._qtWidget().setFixedWidth( GafferUI.PlugWidget.labelWidth() )
 			GafferUI.Spacer( imath.V2i( 25, 2 ) ) # approximate width of a BoolWidget Switch
 			self.addChild( GafferUI.Label( "<h4><b>" + headings[1] + "</b></h4>", toolTip = toolTipOverride ), expand = True, horizontalAlignment=GafferUI.HorizontalAlignment.Left )
-			GafferUI.Label( "<h4><b>" + headings[2] + "</b></h4>", toolTip = toolTipOverride )._qtWidget().setFixedWidth( _VariationsPlugValueWidgetWidth() )
+			GafferUI.Label( "<h4><b>" + headings[2] + "</b></h4>", toolTip = toolTipOverride )._qtWidget().setFixedWidth( _variationsPlugValueWidgetWidth() )
 
 # Would be really nice if we could specify constructor arguments for widgets in the metadata,
 # so we didn't need to declare specializations for different arguments
 
-class _VariationSpacer( GafferUI.Spacer ) :
-	def __init__( self, node, **kw ) :
-		s = imath.V2i( _VariationsPlugValueWidgetWidth(), 1 )
-		GafferUI.Spacer.__init__( self, s, s )
+_VariationSpacer = lambda node : GafferUI.Spacer( imath.V2i( _variationsPlugValueWidgetWidth(), 1 ), imath.V2i( _variationsPlugValueWidgetWidth(), 1 ) )
 
-class _SeedsColumnHeadings( _ColumnHeadings ):
-	def __init__( self, node ) :
-		_ColumnHeadings.__init__( self, [ "Seeds", "", "Variations" ], toolTipOverride = inspect.cleandoc(
-			"""
-			# Seeds
+_SeedColumnHeadings = lambda node : _ColumnHeadings( ["Seed", "", "Variations"], toolTipOverride = inspect.cleandoc(
+	"""
+	# Seed
 
-			Create a seeds context variable based on the id primvar.  This hashes the point id
-			to create a persistent integer for each instance.  The context variable is used when
-			evaluating the prototypes scene.
-			"""
-		 ) )
+	Create a seed context variable based on the id primvar.  This hashes the point id
+	to create a persistent integer for each instance.  The context variable is used when
+	evaluating the prototypes scene.
+	"""
+) )
 
-class _TimeOffsetColumnHeadings( _ColumnHeadings ):
-	def __init__( self, node ) :
-		_ColumnHeadings.__init__( self, [ "Time Offset", "Quantize", "Variations" ] )
+_TimeOffsetColumnHeadings = lambda node : _ColumnHeadings( [ "Time Offset", "Quantize", "Variations" ] )
+_SectionSpacer1 = lambda node : GafferUI.Spacer( imath.V2i( 1, 5 ), imath.V2i( 1, 5 ) )
+_SectionSpacer2 = lambda node : GafferUI.Spacer( imath.V2i( 1, 15 ), imath.V2i( 1, 15 ) )
+_SeedCountSpacer = lambda node : GafferUI.Spacer( imath.V2i( 0 ), imath.V2i( 999999, 0 ) )
+_SeedCountWidget = lambda node : _VariationsPlugValueWidget( node["variations"], node["seedVariable"] )
 
-class _SectionSpacer1( GafferUI.Spacer ) :
-	def __init__( self, node, **kw ) :
-		s = imath.V2i( 1, 5 )
-		GafferUI.Spacer.__init__( self, s, s )
-
-class _SectionSpacer2( GafferUI.Spacer ) :
-	def __init__( self, node, **kw ) :
-		s = imath.V2i( 1, 15 )
-		GafferUI.Spacer.__init__( self, s, s )
-
-class _SeedCountSpacer( GafferUI.Spacer ) :
-	def __init__( self, node, **kw ) :
-		GafferUI.Spacer.__init__( self, imath.V2i( 0 ), imath.V2i( 999999, 0 ) )
-
-class _TimeOffsetContextVariableWidget( _ContextVariableWidget ) :
-	def __init__( self, plug, **kw ) :
-			_ContextVariableWidget.__init__( self, plug, overrideName = "frame" )
-
-# It would be more standard to make this a class subclassing from _VariationsPlugValueWidget, but
-# then it wouldn't match the stylesheet entry for _VariationsPlugValueWidget.  Making a function
-# that returns a class instance seems to work fine
-def _SeedCountWidget( node ):
-	return _VariationsPlugValueWidget( node["variations"], node["seedVariable"] )
+_TimeOffsetContextVariableWidget = lambda plug : _ContextVariableWidget( plug, overrideName = "frame" )
 
 ##########################################################################
 # Metadata
@@ -352,12 +330,12 @@ Gaffer.Metadata.registerNode(
 	"layout:activator:modeIsIndexedRootsList", lambda node : node["prototypeMode"].getValue() == GafferScene.Instancer.PrototypeMode.IndexedRootsList,
 	"layout:activator:modeIsNotIndexedRootsList", lambda node : node["prototypeMode"].getValue() != GafferScene.Instancer.PrototypeMode.IndexedRootsList,
 	"layout:activator:modeIsNotRootPerVertex", lambda node : node["prototypeMode"].getValue() != GafferScene.Instancer.PrototypeMode.RootPerVertex,
-	"layout:activator:seedsEnable", lambda node : node["generateSeeds"].getValue(),
-	"layout:activator:seedsParameters", lambda node : not node["seedsPassthroughAllIds"].getValue(),
+	"layout:activator:seedEnable", lambda node : node["seedEnable"].getValue(),
+	"layout:activator:seedParameters", lambda node : not node["rawSeed"].getValue(),
 
-	"layout:customWidget:seedsColumnHeadings:widgetType", "GafferSceneUI.InstancerUI._SeedsColumnHeadings",
-	"layout:customWidget:seedsColumnHeadings:section", "Context Variations",
-	"layout:customWidget:seedsColumnHeadings:index", 18,
+	"layout:customWidget:seedColumnHeadings:widgetType", "GafferSceneUI.InstancerUI._SeedColumnHeadings",
+	"layout:customWidget:seedColumnHeadings:section", "Context Variations",
+	"layout:customWidget:seedColumnHeadings:index", 18,
 
 	"layout:customWidget:idContextCountSpacer:widgetType", "GafferSceneUI.InstancerUI._SeedCountSpacer",
 	"layout:customWidget:idContextCountSpacer:section", "Context Variations",
@@ -369,24 +347,24 @@ Gaffer.Metadata.registerNode(
 	"layout:customWidget:idContextCount:index", 19,
 	"layout:customWidget:idContextCount:accessory", True,
 
-	"layout:customWidget:seedsVariableSpacer:widgetType", "GafferSceneUI.InstancerUI._VariationSpacer",
-	"layout:customWidget:seedsVariableSpacer:section", "Context Variations",
-	"layout:customWidget:seedsVariableSpacer:index", 20,
-	"layout:customWidget:seedsVariableSpacer:accessory", True,
+	"layout:customWidget:seedVariableSpacer:widgetType", "GafferSceneUI.InstancerUI._VariationSpacer",
+	"layout:customWidget:seedVariableSpacer:section", "Context Variations",
+	"layout:customWidget:seedVariableSpacer:index", 20,
+	"layout:customWidget:seedVariableSpacer:accessory", True,
 
-	"layout:customWidget:numSeedsSpacer:widgetType", "GafferSceneUI.InstancerUI._VariationSpacer",
-	"layout:customWidget:numSeedsSpacer:section", "Context Variations",
-	"layout:customWidget:numSeedsSpacer:index", 21,
-	"layout:customWidget:numSeedsSpacer:accessory", True,
+	"layout:customWidget:seedPossibilitiesSpacer:widgetType", "GafferSceneUI.InstancerUI._VariationSpacer",
+	"layout:customWidget:seedPossibilitiesSpacer:section", "Context Variations",
+	"layout:customWidget:seedPossibilitiesSpacer:index", 21,
+	"layout:customWidget:seedPossibilitiesSpacer:accessory", True,
 
-	"layout:customWidget:seedsScrambleSpacer:widgetType", "GafferSceneUI.InstancerUI._VariationSpacer",
-	"layout:customWidget:seedsScrambleSpacer:section", "Context Variations",
-	"layout:customWidget:seedsScrambleSpacer:index", 22,
-	"layout:customWidget:seedsScrambleSpacer:accessory", True,
+	"layout:customWidget:seedPermutationSpacer:widgetType", "GafferSceneUI.InstancerUI._VariationSpacer",
+	"layout:customWidget:seedPermutationSpacer:section", "Context Variations",
+	"layout:customWidget:seedPermutationSpacer:index", 22,
+	"layout:customWidget:seedPermutationSpacer:accessory", True,
 
-	"layout:customWidget:seedsSpacer:widgetType", "GafferSceneUI.InstancerUI._SectionSpacer1",
-	"layout:customWidget:seedsSpacer:section", "Context Variations",
-	"layout:customWidget:seedsSpacer:index", 23,
+	"layout:customWidget:seedSpacer:widgetType", "GafferSceneUI.InstancerUI._SectionSpacer1",
+	"layout:customWidget:seedSpacer:section", "Context Variations",
+	"layout:customWidget:seedSpacer:index", 23,
 
 	"layout:customWidget:timeOffsetHeadings:widgetType", "GafferSceneUI.InstancerUI._TimeOffsetColumnHeadings",
 	"layout:customWidget:timeOffsetHeadings:section", "Context Variations",
@@ -641,10 +619,10 @@ Gaffer.Metadata.registerNode(
 		],
 
 
-		"generateSeeds" : [
+		"seedEnable" : [
 			"description",
 			"""
-			Create a seeds context variable based on the id primvar.  This hashes the point id
+			Create a seed context variable based on the id primvar.  This hashes the point id
 			to create a persistent integer for each instance.  The context variable is used when
 			evaluating the prototypes scene.
 			""",
@@ -657,42 +635,42 @@ Gaffer.Metadata.registerNode(
 			Name of the context variable to put the seed value in
 			""",
 			"layout:section", "Context Variations",
-			"layout:visibilityActivator", "seedsEnable",
+			"layout:visibilityActivator", "seedEnable",
 		],
 
-		"numSeeds" : [
+		"seedPossibilities" : [
 			"description",
 			"""
 			The number of possible seed values.  Increasing this allows for more different variations
-			to be driven by the seeds, increasing the total number of variations required.
+			to be driven by the seed, increasing the total number of variations required.
 			""",
 			"layout:section", "Context Variations",
-			"layout:visibilityActivator", "seedsEnable",
-			"layout:activator", "seedsParameters",
+			"layout:visibilityActivator", "seedEnable",
+			"layout:activator", "seedParameters",
 		],
 
-		"seedsScramble" : [
+		"seedPermutation" : [
 			"description",
 			"""
-			Changing the seedsScramble changes the mapping of ids to seeds.  This results in a different
+			Changing the seedPermutation changes the mapping of ids to seeds.  This results in a different
 			grouping of which instances end up with the same seed.
 			""",
 			"layout:section", "Context Variations",
-			"layout:visibilityActivator", "seedsEnable",
-			"layout:activator", "seedsParameters",
+			"layout:visibilityActivator", "seedEnable",
+			"layout:activator", "seedParameters",
 		],
 
-		"seedsPassthroughAllIds" : [
+		"rawSeed" : [
 			"description",
 			"""
-			Enable this in rare cases it is required to pass through every single id directly into the seeds
+			Enable this in rare cases it is required to pass through every single id directly into the seed
 			context variable.  This is very expensive, because every single instance will need a separate
 			context, but is sometimes useful, and may be an acceptable cost if there isn't a huge number of
 			total instances.
 			""",
 			"label", "Passthrough All Ids",
 			"layout:section", "Context Variations",
-			"layout:visibilityActivator", "seedsEnable",
+			"layout:visibilityActivator", "seedEnable",
 		],
 
 		"contextVariables" : [
