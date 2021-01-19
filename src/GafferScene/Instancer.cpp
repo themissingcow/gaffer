@@ -179,14 +179,14 @@ struct PrototypeContextVariable
 struct AccessPrototypeContextVariable
 {
 	template< class T>
-	void operator()( const TypedData<vector<T>> *data, const PrototypeContextVariable &v, int index, Context &context )
+	void operator()( const TypedData<vector<T>> *data, const PrototypeContextVariable &v, int index, Context::EditableScope &scope )
 	{
 		T raw = PrimitiveVariable::IndexedView<T>( *v.primVar )[index];
 		T value = quantize( raw, v.quantize );
-		context.set( v.name, value );
+		scope.set( v.name, value );
 	}
 
-	void operator()( const TypedData<vector<float>> *data, const PrototypeContextVariable &v, int index, Context &context )
+	void operator()( const TypedData<vector<float>> *data, const PrototypeContextVariable &v, int index, Context::EditableScope &scope )
 
 	{
 		float raw = PrimitiveVariable::IndexedView<float>( *v.primVar )[index];
@@ -194,15 +194,15 @@ struct AccessPrototypeContextVariable
 
 		if( v.offsetMode )
 		{
-			context.set( v.name, value + context.get<float>( v.name ) );
+			scope.set( v.name, value + scope.context()->get<float>( v.name ) );
 		}
 		else
 		{
-			context.set( v.name, value );
+			scope.set( v.name, value );
 		}
 	}
 
-	void operator()( const TypedData<vector<int>> *data, const PrototypeContextVariable &v, int index, Context &context )
+	void operator()( const TypedData<vector<int>> *data, const PrototypeContextVariable &v, int index, Context::EditableScope &scope )
 
 	{
 		int raw = PrimitiveVariable::IndexedView<int>( *v.primVar )[index];
@@ -210,15 +210,15 @@ struct AccessPrototypeContextVariable
 
 		if( v.offsetMode )
 		{
-			context.set( v.name, float(value) + context.get<float>( v.name ) );
+			scope.set( v.name, float(value) + scope.context()->get<float>( v.name ) );
 		}
 		else
 		{
-			context.set( v.name, value );
+			scope.set( v.name, value );
 		}
 	}
 
-	void operator()( const Data *data, const PrototypeContextVariable &v, int index, Context &context )
+	void operator()( const Data *data, const PrototypeContextVariable &v, int index, Context::EditableScope &scope )
 	{
 		throw IECore::Exception( "Context variable prim vars must contain vector data" );
 	}
@@ -517,7 +517,6 @@ class Instancer::EngineData : public Data
 
 
 			size_t n = numPoints();
-			std::vector< IECore::MurmurHash > contextVariableHashes( m_prototypeContextVariables.size() );
 			for( unsigned int i = 0; i < n; i++ )
 			{
 				IECore::MurmurHash totalHash;
@@ -525,13 +524,14 @@ class Instancer::EngineData : public Data
 				{
 					totalHash = prototypeHashes[ ((*m_indices)[i]) % m_numPrototypes ];
 				}
-				hashPrototypeContext( i, contextVariableHashes );
-				for( unsigned int j = 0; j < contextVariableHashes.size(); j++ )
+				for( unsigned int j = 0; j < m_prototypeContextVariables.size(); j++ )
 				{
-					(*result)[j].insert( contextVariableHashes[j] );
-					totalHash.append( contextVariableHashes[j] );
+					IECore::MurmurHash r; // TODO - if we're using this in inner loops, the constructor should probably be inlined?
+					hashPrototypeContextVariable( i, m_prototypeContextVariables[j], r );
+					(*result)[j].insert( r );
+					totalHash.append( r );
 				}
-				(*result)[contextVariableHashes.size()].insert( totalHash );
+				(*result)[m_prototypeContextVariables.size()].insert( totalHash );
 			}
 
 			return result;
@@ -554,7 +554,7 @@ class Instancer::EngineData : public Data
 
 		// Set the context variables in the context for this index, based on the m_prototypeContextVariables
 		// set up for this EngineData
-		void fillPrototypeContext( int index, Context &context ) const
+		void setPrototypeContextVariables( int index, PrototypeScope &scope ) const
 		{
 			for( unsigned int i = 0; i < m_prototypeContextVariables.size(); i++ )
 			{
@@ -562,7 +562,7 @@ class Instancer::EngineData : public Data
 
 				if( v.seedMode )
 				{
-					context.set( v.name, seedForPoint( index, v.primVar, v.numSeeds, v.seedScramble ) );
+					scope.set( v.name, seedForPoint( index, v.primVar, v.numSeeds, v.seedScramble ) );
 					continue;
 				}
 
@@ -573,40 +573,7 @@ class Instancer::EngineData : public Data
 
 				try
 				{
-					IECore::dispatch( v.primVar->data.get(), AccessPrototypeContextVariable(), v, index, context );
-				}
-				catch( QuantizeException &e )
-				{
-					throw IECore::Exception( boost::str( boost::format( "Context variable \"%1%\" : cannot quantize variable of type %2%" ) % index % v.primVar->data->typeName() ) );
-				}
-			}
-		}
-
-		// Return hashes for the context variables for this index, in the same order as m_prototypeContextVariables
-		void hashPrototypeContext( int index, std::vector< IECore::MurmurHash > &contextVariableHashes ) const
-		{
-			for( unsigned int i = 0; i < m_prototypeContextVariables.size(); i++ )
-			{
-				contextVariableHashes[i] = IECore::MurmurHash(); // TODO - if we're using this in inner loops, it should probably be inlined?
-				const PrototypeContextVariable &v = m_prototypeContextVariables[i];
-
-				if( v.seedMode )
-				{
-					contextVariableHashes[i].append( seedForPoint( index, v.primVar, v.numSeeds, v.seedScramble ) );
-					continue;
-				}
-
-				if( !v.primVar )
-				{
-					continue;
-				}
-
-				try
-				{
-					IECore::dispatch(
-						v.primVar->data.get(), UniqueHashPrototypeContextVariable(),
-						v, index, contextVariableHashes[i]
-					);
+					IECore::dispatch( v.primVar->data.get(), AccessPrototypeContextVariable(), v, index, scope );
 				}
 				catch( QuantizeException &e )
 				{
@@ -616,6 +583,31 @@ class Instancer::EngineData : public Data
 		}
 
 	protected :
+
+		// Needs to match setPrototypeContextVariables above, except that it operates on one
+		// PrototypeContextVariable at a time instead of iterating through them
+		void hashPrototypeContextVariable( int index, const PrototypeContextVariable &v, IECore::MurmurHash &result ) const
+		{
+			if( v.seedMode )
+			{
+				result.append( seedForPoint( index, v.primVar, v.numSeeds, v.seedScramble ) );
+				return;
+			}
+
+			if( !v.primVar )
+			{
+				return;
+			}
+
+			try
+			{
+				IECore::dispatch( v.primVar->data.get(), UniqueHashPrototypeContextVariable(), v, index, result );
+			}
+			catch( QuantizeException &e )
+			{
+				throw IECore::Exception( boost::str( boost::format( "Context variable \"%1%\" : cannot quantize variable of type %2%" ) % index % v.primVar->data->typeName() ) );
+			}
+		}
 
 		void copyFrom( const Object *other, CopyContext *context ) override
 		{
@@ -2196,7 +2188,7 @@ Instancer::PrototypeScope::PrototypeScope( const Gaffer::ObjectPlug *enginePlug,
 	if( branchPath.size() >= 3 && engine->hasContextVariables() )
 	{
 		const size_t pointIndex = engine->pointIndex( branchPath[2] );
-		engine->fillPrototypeContext( pointIndex, *m_context );
+		engine->setPrototypeContextVariables( pointIndex, *this );
 	}
 
 	if( branchPath.size() > 3 )
