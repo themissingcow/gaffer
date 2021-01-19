@@ -187,7 +187,6 @@ struct AccessPrototypeContextVariable
 	}
 
 	void operator()( const TypedData<vector<float>> *data, const PrototypeContextVariable &v, int index, Context::EditableScope &scope )
-
 	{
 		float raw = PrimitiveVariable::IndexedView<float>( *v.primVar )[index];
 		float value = quantize( raw, v.quantize );
@@ -203,7 +202,6 @@ struct AccessPrototypeContextVariable
 	}
 
 	void operator()( const TypedData<vector<int>> *data, const PrototypeContextVariable &v, int index, Context::EditableScope &scope )
-
 	{
 		int raw = PrimitiveVariable::IndexedView<int>( *v.primVar )[index];
 		int value = quantize( raw, v.quantize );
@@ -392,11 +390,14 @@ class Instancer::EngineData : public Data
 			{
 				// We need to check if the primVars driving the context are the right size.
 				// There's not an easy way to do this on PrimitiveVariable without knowing the type,
-				// but it should be safe to assume as a precondition that the primVar matches the
-				// appropriate size on m_primitive
-				if( v.primVar && m_primitive->variableSize( v.primVar->interpolation ) != numPoints() )
+				// but we can check that it is valid for the primitive, and that the primitive size for that
+				// variable is correct
+				if( v.primVar && !(
+					m_primitive->isPrimitiveVariableValid( *v.primVar ) &&
+					m_primitive->variableSize( v.primVar->interpolation ) == numPoints()
+				) )
 				{
-					throw IECore::Exception( boost::str( boost::format( "Context primitive variable for \"%1%\" has incorrect size" ) % v.name.string() ) );
+					throw IECore::Exception( boost::str( boost::format( "Context primitive variable for \"%1%\" is not a correctly sized Vertex primitive variable" ) % v.name.string() ) );
 				}
 			}
 		}
@@ -492,15 +493,16 @@ class Instancer::EngineData : public Data
 			return result;
 		}
 
-		typedef std::vector< boost::unordered_set< IECore::MurmurHash > > PrototypeHashes;
+		typedef std::map< InternedString, boost::unordered_set< IECore::MurmurHash > > PrototypeHashes;
 
 		// In order to compute the number of variations, we compute a unique hash for every context we use
 		// for evaluating prototypes.  So that we can track which sources are responsible for variations,
 		// we return a vector of hash sets, corresponding to the order of m_prototypeContextVariables,
 		// plus an extra entry at the end for the combined result of all variation sources
-		std::shared_ptr<PrototypeHashes> uniquePrototypeHashes() const
+		std::unique_ptr<PrototypeHashes> uniquePrototypeHashes() const
 		{
-			std::shared_ptr<PrototypeHashes> result( new PrototypeHashes( m_prototypeContextVariables.size() + 1 ) );
+			std::vector< boost::unordered_set< IECore::MurmurHash > > variableHashAccumulate( m_prototypeContextVariables.size() );
+			boost::unordered_set< IECore::MurmurHash > totalHashAccumulate;
 
 			std::vector< IECore::MurmurHash> prototypeHashes;
 			prototypeHashes.reserve( m_prototypeIndexRemap.size() );
@@ -528,11 +530,19 @@ class Instancer::EngineData : public Data
 				{
 					IECore::MurmurHash r; // TODO - if we're using this in inner loops, the constructor should probably be inlined?
 					hashPrototypeContextVariable( i, m_prototypeContextVariables[j], r );
-					(*result)[j].insert( r );
+					variableHashAccumulate[j].insert( r );
 					totalHash.append( r );
 				}
-				(*result)[m_prototypeContextVariables.size()].insert( totalHash );
+				totalHashAccumulate.insert( totalHash );
 			}
+
+			// \todo - should use make_unique once we standardize on C++14
+			std::unique_ptr<PrototypeHashes> result( new PrototypeHashes() );
+			for( unsigned int j = 0; j < m_prototypeContextVariables.size(); j++ )
+			{
+				(*result)[ m_prototypeContextVariables[j].name ] = variableHashAccumulate[j];
+			}
+			(*result)[ "" ] = totalHashAccumulate;
 
 			return result;
 		}
@@ -1294,26 +1304,14 @@ void Instancer::hash( const Gaffer::ValuePlug *output, const Gaffer::Context *co
 		// not their order.  We can create a cheap order-independent hash by summing the hashes
 		// all of the engines
 		std::atomic<uint64_t> h1Accum( 0 ), h2Accum( 0 );
-		struct HashAccum
+		std::function<bool(const GafferScene::ScenePlug *, const GafferScene::ScenePlug::ScenePath &)> functor =[this, &h1Accum, &h2Accum]( const GafferScene::ScenePlug *scene, const GafferScene::ScenePlug::ScenePath &path )
 		{
-			HashAccum( const ObjectPlug *enginePlug, std::atomic<uint64_t> &h1Accum, std::atomic<uint64_t> &h2Accum ):
-				m_enginePlug( enginePlug ), m_h1Accum( h1Accum ), m_h2Accum( h2Accum )
-			{
-			}
-			bool operator()( const GafferScene::ScenePlug *scene, const GafferScene::ScenePlug::ScenePath &path )
-			{
-				IECore::MurmurHash h = m_enginePlug->hash();
-				m_h1Accum.fetch_add( h.h1(), std::memory_order_relaxed );
-				m_h2Accum.fetch_add( h.h2(), std::memory_order_relaxed );
-				return true;
-			}
-		private:
-			const ObjectPlug *m_enginePlug;
-			std::atomic<uint64_t> &m_h1Accum, &m_h2Accum;
+			IECore::MurmurHash h = enginePlug()->hash();
+			h1Accum.fetch_add( h.h1(), std::memory_order_relaxed );
+			h2Accum.fetch_add( h.h2(), std::memory_order_relaxed );
+			return true;
 		};
-
-		HashAccum a( enginePlug(), h1Accum, h2Accum );
-		GafferScene::SceneAlgo::filteredParallelTraverse( inPlug(), filterPlug(), a );
+		GafferScene::SceneAlgo::filteredParallelTraverse( inPlug(), filterPlug(), functor );
 		h.append( IECore::MurmurHash( h1Accum, h2Accum ) );
 	}
 }
@@ -1494,63 +1492,39 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 		// Compute the number of variations by accumulating massive lists of unique hashes from all EngineDatas
 		// and then counting the total number of uniques
 		tbb::spin_mutex locationMutex;
-		std::vector< std::shared_ptr< EngineData::PrototypeHashes > > perLocationHashes;
-		std::shared_ptr< std::vector< InternedString > > contextVariableNames;
-		struct HashSetAccum
-		{
-			HashSetAccum(
-				const ObjectPlug *enginePlug,
-				tbb::spin_mutex &locationMutex,
-				std::vector< std::shared_ptr< EngineData::PrototypeHashes > > &perLocationHashes,
-				std::shared_ptr< std::vector< InternedString > > &contextVariableNames
-			):
-				m_enginePlug( enginePlug ), m_locationMutex( locationMutex ),
-				m_perLocationHashes( perLocationHashes ), m_contextVariableNames( contextVariableNames )
-			{
-			}
-			bool operator()( const GafferScene::ScenePlug *scene, const GafferScene::ScenePlug::ScenePath &path )
-			{
-				ConstEngineDataPtr engine = boost::static_pointer_cast<const EngineData>( m_enginePlug->getValue() );
-				std::shared_ptr< EngineData::PrototypeHashes > locationHashes = engine->uniquePrototypeHashes();
+		std::vector< std::unique_ptr< EngineData::PrototypeHashes > > perLocationHashes;
 
-				tbb::spin_mutex::scoped_lock lock( m_locationMutex );
-				m_perLocationHashes.push_back( locationHashes );
-				if( !m_contextVariableNames )
-				{
-					// The context variable names are guaranteed to match for all EngineData, so we just
-					// grab them from the first EngineData we process
-					m_contextVariableNames = std::shared_ptr< std::vector< InternedString > >( new std::vector< InternedString >( engine->contextVariableNames() ) );
-				}
-				return true;
-			}
-		private:
-			const ObjectPlug *m_enginePlug;
-			tbb::spin_mutex &m_locationMutex;
-			std::vector< std::shared_ptr< EngineData::PrototypeHashes > > &m_perLocationHashes;
-			std::shared_ptr< std::vector< InternedString > > &m_contextVariableNames;
+		std::function<bool(const GafferScene::ScenePlug *, const GafferScene::ScenePlug::ScenePath &)> functor =[this, &locationMutex, &perLocationHashes]( const GafferScene::ScenePlug *scene, const GafferScene::ScenePlug::ScenePath &path )
+		{
+			ConstEngineDataPtr engine = boost::static_pointer_cast<const EngineData>( enginePlug()->getValue() );
+			std::unique_ptr< EngineData::PrototypeHashes > locationHashes = engine->uniquePrototypeHashes();
+
+			tbb::spin_mutex::scoped_lock lock( locationMutex );
+			perLocationHashes.push_back( std::move( locationHashes ) );
+			return true;
 		};
 
-		HashSetAccum a( enginePlug(), locationMutex, perLocationHashes, contextVariableNames );
-		GafferScene::SceneAlgo::filteredParallelTraverse( inPlug(), filterPlug(), a );
+		GafferScene::SceneAlgo::filteredParallelTraverse( inPlug(), filterPlug(), functor );
+
+		CompoundDataPtr result = new CompoundData;
 
 		std::vector< int > numUnique;
 		std::vector< InternedString > outputNames;
 		if( perLocationHashes.size() == 0 )
 		{
-			numUnique.push_back( 0 );
+			// There is always an entry for the empty string, which contains the total variations
+			// for all context variables combined
+			result->writable()[""] = new IntData( 0 );
 		}
 		else
 		{
-			numUnique.reserve( perLocationHashes[0]->size() );
-
-			outputNames = *contextVariableNames;
 			if( perLocationHashes.size() == 1 )
 			{
 				// We only have one location, so we can just output the sizes of the hash sets
 				// we got
-				for( const auto &hs : *perLocationHashes[0] )
+				for( const auto &var : *perLocationHashes[0] )
 				{
-					numUnique.push_back( hs.size() );
+					result->writable()[var.first] = new IntData( var.second.size() );
 				}
 			}
 			else
@@ -1562,26 +1536,23 @@ void Instancer::compute( Gaffer::ValuePlug *output, const Gaffer::Context *conte
 				EngineData::PrototypeHashes combine( *perLocationHashes[0] );
 				for( unsigned int i = 1; i < perLocationHashes.size(); i++ )
 				{
-					for( unsigned int j = 0; j < perLocationHashes[0]->size(); j++ )
+					for( auto &var : *perLocationHashes[0] )
 					{
-						combine[j].merge( (*perLocationHashes[i])[j] );
+						if( combine.find( var.first ) == combine.end() )
+						{
+							combine[ var.first ] = var.second;
+						}
+						else
+						{
+							combine[ var.first ].merge( var.second );
+						}
 					}
 				}
-				for( const auto &hs : combine )
+				for( const auto &var : combine )
 				{
-					numUnique.push_back( hs.size() );
+					result->writable()[var.first] = new IntData( var.second.size() );
 				}
 			}
-		}
-
-		// The first entries correspond to the context variable names, the last entry is always the total,
-		// which we output as ""
-		outputNames.push_back( "" );
-
-		CompoundDataPtr result = new CompoundData;
-		for( unsigned int i = 0; i < outputNames.size(); i++ )
-		{
-			result->writable()[ outputNames[i] ] = new IntData( numUnique[i] );
 		}
 
 		static_cast<AtomicCompoundDataPlug *>( output )->setValue( result );
